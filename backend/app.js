@@ -30,7 +30,7 @@ const allowedOrigins = [
   'http://localhost:5174',
   'https://ujala.vercel.app',
   'https://fdjp6fx2-5173.inc1.devtunnels.ms',
-  'https://ujala-development.vercel.app/'
+  'https://ujala-development.vercel.app'
 ];
 
 const corsOptions = {
