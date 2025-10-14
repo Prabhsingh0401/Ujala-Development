@@ -1,0 +1,377 @@
+import React, { useState } from 'react';
+import { Search, Plus, X, FilePenLine, Trash2 } from 'lucide-react';
+import ListComponent from '../../global/ListComponent';
+import ErrorBoundary from '../../global/ErrorBoundary';
+import { useDealers } from './hooks/useDealers';
+
+function Dealers() {
+    const {
+        searchTerm,
+        setSearchTerm,
+        dealers,
+        loading,
+        distributors,
+        addDealer,
+        updateDealer,
+        deleteDealer,
+    } = useDealers();
+
+    const [showDealerModal, setShowDealerModal] = useState(false);
+    const [selectedDealer, setSelectedDealer] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
+    
+    const [newDealer, setNewDealer] = useState({
+        name: '',
+        location: '',
+        territory: '',
+        contactPerson: '',
+        contactPhone: '',
+        email: '',
+        status: 'Active',
+        distributor: '' // Initialize distributor field
+    });
+
+    const handleAddEditDealer = async (e) => {
+        e.preventDefault();
+        let success;
+        if (isEditing) {
+            success = await updateDealer(selectedDealer._id, newDealer);
+        } else {
+            success = await addDealer(newDealer);
+        }
+        if (success) {
+            handleModalClose();
+        }
+    };
+
+    const handleEditClick = (dealer) => {
+        setSelectedDealer(dealer);
+        setNewDealer({
+            name: dealer.name,
+            location: dealer.location,
+            territory: dealer.territory,
+            contactPerson: dealer.contactPerson,
+            contactPhone: dealer.contactPhone,
+            email: dealer.email,
+            status: dealer.status,
+            distributor: dealer.distributor?._id || '' // Set distributor ID for editing
+        });
+        setIsEditing(true);
+        setShowDealerModal(true);
+    };
+
+    const handleModalClose = () => {
+        setShowDealerModal(false);
+        setSelectedDealer(null);
+        setIsEditing(false);
+        setNewDealer({
+            name: '',
+            location: '',
+            territory: '',
+            contactPerson: '',
+            contactPhone: '',
+            email: '',
+            status: 'Active',
+            distributor: ''
+        });
+    };
+
+    return (
+        <div className="p-2">
+            <div className="p-2">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div className="p-4 sm:p-6 border-b border-gray-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+                            <div>
+                                <h2 className="text-lg font-semibold text-gray-900">Dealer List</h2>
+                                <p className="text-sm text-gray-600">
+                                    Total {dealers.length}
+                                </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full sm:w-auto pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => setShowDealerModal(true)}
+                                    className="flex items-center justify-center space-x-2 bg-[#4d55f5] text-white px-4 py-2 rounded-lg hover:bg-[#3d45e5] transition-colors"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    <span>Add Dealer</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4">
+                        {loading ? (
+                            <div className="text-center py-12">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4d55f5] mx-auto"></div>
+                                <p className="mt-4 text-gray-500">Loading dealers...</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Territory</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distributor</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <ListComponent
+                                            items={dealers}
+                                            renderItem={(dealer) => (
+                                                <>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dealer.dealerId}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.location}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.territory}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                        <div>
+                                                            <p>{dealer.contactPerson}</p>
+                                                            <p className="text-gray-500">{dealer.contactPhone}</p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                            dealer.status === 'Active'
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : 'bg-red-100 text-red-800'
+                                                        }`}>
+                                                            {dealer.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.distributor?.name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        <div className="flex items-center space-x-2">
+                                                            <button 
+                                                                onClick={() => handleEditClick(dealer)}
+                                                                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                                                            >
+                                                                <FilePenLine size={20} className="text-gray-500" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => deleteDealer(dealer._id)}
+                                                                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                                                            >
+                                                                <Trash2 size={20} className="text-red-500" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            )}
+                                            itemContainer="tr"
+                                            listContainer="tbody"
+                                            itemClassName="hover:bg-gray-50"
+                                            listClassName="bg-white divide-y divide-gray-200"
+                                        />
+                                    </table>
+                                </div>
+
+                                <div className="md:hidden space-y-4">
+                                    {dealers.length > 0 ? (
+                                        <ListComponent
+                                            items={dealers}
+                                            renderItem={(dealer) => (
+                                                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                                                    <div className="flex justify-between items-start">
+                                                        <h3 className="font-medium text-gray-900">{dealer.name}</h3>
+                                                        <div className="flex items-center space-x-2">
+                                                            <button 
+                                                                onClick={() => handleEditClick(dealer)}
+                                                                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                                                            >
+                                                                <FilePenLine size={20} className="text-gray-500" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => deleteDealer(dealer._id)}
+                                                                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                                                            >
+                                                                <Trash2 size={20} className="text-red-500" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-sm text-gray-600">{dealer.dealerId}</p>
+                                                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                                                        <div><span className="font-medium">Location:</span> {dealer.location}</div>
+                                                        <div><span className="font-medium">Territory:</span> {dealer.territory}</div>
+                                                        <div><span className="font-medium">Contact:</span> {dealer.contactPerson}</div>
+                                                        <div><span className="font-medium">Phone:</span> {dealer.contactPhone}</div>
+                                                        <div className="col-span-2">
+                                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                                dealer.status === 'Active'
+                                                                    ? 'bg-green-100 text-green-800'
+                                                                    : 'bg-red-100 text-red-800'
+                                                            }`}>
+                                                                {dealer.status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            itemContainer="div"
+                                            listContainer="div"
+                                            listClassName="space-y-4"
+                                        />
+                                    ) : (
+                                        <div className="text-center py-12 text-gray-500">No dealers found</div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {showDealerModal && (
+                <div className="fixed inset-0 bg-black/80 bg-opacity-20 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg p-4 sm:p-6 lg:p-8 w-full max-w-4xl max-h-[95vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                {isEditing ? 'Edit Dealer' : 'Add New Dealer'}
+                            </h3>
+                            <button
+                                onClick={handleModalClose}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddEditDealer}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newDealer.name}
+                                        onChange={(e) => setNewDealer({...newDealer, name: e.target.value})}
+                                        placeholder="Enter dealer name"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newDealer.location}
+                                        onChange={(e) => setNewDealer({...newDealer, location: e.target.value})}
+                                        placeholder="Enter location"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Territory *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newDealer.territory}
+                                        onChange={(e) => setNewDealer({...newDealer, territory: e.target.value})}
+                                        placeholder="Enter territory"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Contact Person *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newDealer.contactPerson}
+                                        onChange={(e) => setNewDealer({...newDealer, contactPerson: e.target.value})}
+                                        placeholder="Enter contact person name"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone *</label>
+                                    <input
+                                        type="tel"
+                                        required
+                                        value={newDealer.contactPhone}
+                                        onChange={(e) => setNewDealer({...newDealer, contactPhone: e.target.value})}
+                                        placeholder="Enter contact phone"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={newDealer.email}
+                                        onChange={(e) => setNewDealer({...newDealer, email: e.target.value})}
+                                        placeholder="Enter email address"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+                                    <select
+                                        required
+                                        value={newDealer.status}
+                                        onChange={(e) => setNewDealer({...newDealer, status: e.target.value})}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    >
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Distributor</label>
+                                    <select
+                                        value={newDealer.distributor}
+                                        onChange={(e) => setNewDealer({...newDealer, distributor: e.target.value})}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    >
+                                        <option value="">Select Distributor</option>
+                                        {distributors.map(distributor => (
+                                            <option key={distributor._id} value={distributor._id}>{distributor.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="mt-8">
+                                <button
+                                    type="submit"
+                                    className="w-full px-6 py-3 bg-[#8B8FFF] text-white rounded-xl hover:bg-[#7B7FFF] transition-colors font-medium"
+                                >
+                                    {isEditing ? 'Update Dealer' : 'Add Dealer'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function DealersWithErrorBoundary() {
+    return (
+        <ErrorBoundary>
+            <Dealers />
+        </ErrorBoundary>
+    );
+}
