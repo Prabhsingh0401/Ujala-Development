@@ -3,8 +3,6 @@ import ListComponent from '../../../global/ListComponent';
 
 export function OrderCard({
   orders,
-  selectedOrders,
-  onSelectOrder,
   onView,
   onEdit,
   onDelete,
@@ -50,13 +48,14 @@ export function OrderCard({
                 <div><span className="font-medium">Order Type:</span> {order.orderType === '2_units' ? '2 Units/Box' : order.orderType === '3_units' ? '3 Units/Box' : '1 Unit/Box'}</div>
                 <div className="col-span-2">
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${order.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${order.status === 'Completed' ? 'bg-green-500' : order.status === 'Dispatched' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
                     <select
                       value={order.status}
                       onChange={(e) => onStatusChange(order._id, e.target.value)}
                       className="px-2 py-1 text-xs font-medium border border-gray-200 rounded-md cursor-pointer focus:ring-2 focus:ring-[#4d55f5] focus:border-[#4d55f5] bg-white"
                     >
                       <option value="Pending">Pending</option>
+                      <option value="Dispatched">Dispatched</option>
                       <option value="Completed">Completed</option>
                     </select>
                   </div>

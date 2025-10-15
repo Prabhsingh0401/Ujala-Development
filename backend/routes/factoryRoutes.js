@@ -7,7 +7,8 @@ import {
     deleteFactory,
     getFactoryOrders,
     updateOrderItemStatus,
-    bulkUpdateOrderItemStatus
+    bulkUpdateOrderItemStatus,
+    getFactorySales
 } from '../controllers/factoryController.js';
 
 const router = express.Router();
@@ -29,6 +30,9 @@ router.delete('/:id', deleteFactory);
 
 // @route   GET /api/factories/:id/orders
 router.get('/:id/orders', getFactoryOrders);
+
+// @route   GET /api/factories/:id/sales
+router.get('/:id/sales', getFactorySales);
 
 // @route   PATCH /api/factories/:id/orders/:itemId/status
 router.patch('/:id/orders/:itemId/status', updateOrderItemStatus);

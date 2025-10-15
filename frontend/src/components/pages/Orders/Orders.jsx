@@ -18,9 +18,12 @@ function Orders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [factoryFilter, setFactoryFilter] = useState('all');
   const [orderTypeFilter, setOrderTypeFilter] = useState('all');
+  const [dispatchedFilter, setDispatchedFilter] = useState('all');
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showOrderDetailsModal, setShowOrderDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10); // Default to 10 items per page
 
   const [isEdit, setIsEdit] = useState(false);
   const [factoryStats, setFactoryStats] = useState({});
@@ -33,11 +36,11 @@ function Orders() {
     categories,
     models,
     loading,
-    statusTabs,
     addOrder,
     updateOrder,
     deleteOrder,
     updateOrderStatus,
+    markOrderAsDispatched,
     transferToProducts,
     refreshOrders
   } = useOrders();
@@ -61,9 +64,17 @@ function Orders() {
 
     const matchesFactory = factoryFilter === 'all' || order.factory?._id === factoryFilter;
     const matchesOrderType = orderTypeFilter === 'all' || order.orderType === orderTypeFilter;
+    const matchesDispatched = dispatchedFilter === 'all' || String(order.dispatched) === dispatchedFilter;
 
-    return matchesSearch && matchesFactory && matchesOrderType;
+    return matchesSearch && matchesFactory && matchesOrderType && matchesDispatched;
   });
+
+  // Apply pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
   const handleAddOrder = async (e) => {
     e.preventDefault();
@@ -117,6 +128,7 @@ function Orders() {
         orderService.fetchOrderItems(order._id)
       ]);
       setFactoryStats(statsRes.data);
+      console.log(statsRes.data);
       setOrderItems(itemsRes.data);
     } catch (error) {
       console.error('Error fetching order details:', error);
@@ -129,6 +141,13 @@ function Orders() {
 
 
 
+
+  const handleDispatchOrder = async (id) => {
+    const success = await markOrderAsDispatched(id);
+    if (success) {
+      handleViewOrder(selectedOrder);
+    }
+  };
 
   const handleAddOrderClick = () => {
     if (factories.length === 0) {
@@ -176,7 +195,7 @@ function Orders() {
               <p className="text-sm text-gray-600">Total {filteredOrders.length}</p>
             </div>
 
-            <div className="space-y-3 sm:space-y-0 flex flex-col sm:flex-row items-stretch sm:items-center space-y-0 sm:space-x-4">
+            <div className="space-y-3 sm:space-y-0 flex flex-col sm:flex-row items-stretch sm:items-center sm:space-x-4">
               <OrderFilters
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
@@ -184,6 +203,8 @@ function Orders() {
                 onFactoryFilterChange={setFactoryFilter}
                 orderTypeFilter={orderTypeFilter}
                 onOrderTypeFilterChange={setOrderTypeFilter}
+                dispatchedFilter={dispatchedFilter}
+                onDispatchedFilterChange={setDispatchedFilter}
                 factories={factories}
                 onAddOrder={handleAddOrderClick}
               />
@@ -194,17 +215,17 @@ function Orders() {
 
         {/* Table and Cards */}
         <div>
-          {filteredOrders.length > 0 ? (
+          {currentItems.length > 0 ? (
             <>
               <OrderTable
-                orders={filteredOrders}
+                orders={currentItems}
                 onView={handleViewOrder}
                 onEdit={handleEditOrder}
                 onDelete={deleteOrder}
                 onStatusChange={updateOrderStatus}
               />
               <OrderCard
-                orders={filteredOrders}
+                orders={currentItems}
                 onView={handleViewOrder}
                 onEdit={handleEditOrder}
                 onDelete={deleteOrder}
@@ -222,14 +243,40 @@ function Orders() {
         <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
           <div className="text-sm text-gray-700">
             Rows per page:
-            <select className="ml-2 border border-gray-300 rounded px-2 py-1">
-              <option>25</option>
-              <option>50</option>
-              <option>100</option>
+            <select
+              className="ml-2 border border-gray-300 rounded px-2 py-1"
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1); // Reset to first page when items per page changes
+              }}
+            >
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
             </select>
           </div>
-          <div className="text-sm text-gray-700">
-            Showing {filteredOrders.length} of {orders.length}
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-700">
+              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredOrders.length)} of {filteredOrders.length} orders
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-gray-700">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
@@ -258,7 +305,13 @@ function Orders() {
         modalTab={modalTab}
         onTabChange={setModalTab}
         onClose={handleCloseDetailsModal}
+        onDispatch={() => handleDispatchOrder(selectedOrder._id)}
         onTransfer={transferToProducts}
+        onStatusChange={async (itemIds, status) => {
+          await orderService.bulkUpdateOrderStatus(selectedOrder.factory._id, itemIds, status);
+          const itemsRes = await orderService.fetchOrderItems(selectedOrder._id);
+          setOrderItems(itemsRes.data);
+        }}
       />
     </div>
   );

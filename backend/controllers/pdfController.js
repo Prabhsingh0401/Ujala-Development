@@ -5,423 +5,387 @@ import fs from 'fs';
 import path from 'path';
 import archiver from 'archiver';
 
+// Centralized configuration for sticker layout and fonts
+const stickerConfig = {
+    width: 400,
+    height: 250,
+    margin: 10,
+    font: {
+        bold: 'Helvetica-Bold',
+        regular: 'Helvetica',
+        sizes: {
+            title: 11,
+            model: 10,
+            serial: 9,
+            specsLabel: 9,
+            specsValue: 9,
+            taxNote: 7,
+            footer: 9,
+        }
+    },
+    logo: {
+        path: path.join(process.cwd(), 'public', 'Ujala_template_logo.png'),
+        width: 100,
+        yOffset: 0
+    },
+    qr: {
+        width: 48,
+        spacing: 8,
+        yOffset: 0
+    },
+    columns: {
+        leftRatio: 0.48,
+        spacing: 25,
+        leftTitleY: 75,
+        leftModelY: 4,
+        rightSpecsY: 72,
+        specLabelWidth: 70,
+    },
+    serialBoxes: {
+        yOffset: 10,
+        boxWidthPadding: 30,
+        boxHeight: 18,
+        boxGap: 8,
+        serialTopExtra: 8,
+        serialAreaReserveFooter: 110,
+    },
+    footer: {
+        yOffset: 40,
+        lineSpacing: 10,
+    }
+};
+
+let logoBuffer = null;
+const loadLogo = () => {
+    if (logoBuffer) return logoBuffer;
+    try {
+        logoBuffer = fs.readFileSync(stickerConfig.logo.path);
+        return logoBuffer;
+    } catch (error) {
+        console.error('Error loading logo:', error);
+        return null;
+    }
+};
+loadLogo(); // Pre-load
+
 const generateQRCode = async (data) => {
     try {
-        return await QRCode.toDataURL(JSON.stringify(data));
+        const stringData = JSON.stringify(data);
+        return await QRCode.toDataURL(stringData);
     } catch (error) {
         console.error('Error generating QR code:', error);
         return null;
     }
 };
 
-const loadLogo = async () => {
-    try {
-        const logoPath = path.join(process.cwd(), 'public', 'Ujala_template_logo.png');
-        return fs.readFileSync(logoPath);
-    } catch (error) {
-        console.error('Error loading logo:', error);
-        return null;
-    }
-};
-
+// This function remains the same, it's already correct.
 const generateBoxSticker = async (doc, { type, items, qrCodes, model, startX = 10, startY = 10 }) => {
-    // Sticker dimensions (based on your image)
-    const stickerWidth = 400;  // keep card width
-    const stickerHeight = 250; // keep card height
-    const innerMargin = 10;    // reduced margin to fit content tighter
+    const { width, height, margin, font, logo, qr, columns, serialBoxes, footer } = stickerConfig;
 
-    // Draw sticker border
-    doc.rect(startX, startY, stickerWidth, stickerHeight)
-       .stroke();
-
-    // Set default font
-    doc.font('Helvetica-Bold');
+    doc.rect(startX, startY, width, height).stroke();
+    doc.font(font.bold);
     
-    // Calculate columns
-    const leftColX = startX + innerMargin;
-    const leftColWidth = stickerWidth * 0.48; // Adjusted width ratio
-    const rightColX = startX + leftColWidth + 25; // Increased spacing between columns
-    const rightColWidth = stickerWidth - leftColWidth - (innerMargin * 3);
+    const leftColX = startX + margin;
+    const leftColWidth = width * columns.leftRatio;
+    const rightColX = startX + leftColWidth + columns.spacing;
+    const rightColWidth = width - leftColWidth - (margin * 2) - columns.spacing;
 
-    // Left Column
-    let yPosition = startY + innerMargin;
+    // --- Left Column Content ---
+    let yPositionLeft = startY + margin + logo.yOffset;
 
-    // Add logo centered in left column
-    const logo = await loadLogo();
-    if (logo) {
-        const logoWidth = 100;
-        const logoX = leftColX + (leftColWidth - logoWidth) / 2;
-        doc.image(logo, logoX, yPosition, { width: logoWidth });
+    const logoImage = loadLogo();
+    if (logoImage) {
+        doc.image(logoImage, leftColX + (leftColWidth - logo.width) / 2, yPositionLeft, { width: logo.width });
     }
 
-    // Add title centered in left column (slightly smaller)
-    yPosition = startY + 75;
-    doc.fontSize(11);
+    yPositionLeft = startY + columns.leftTitleY;
+    doc.fontSize(font.sizes.title);
     ['SELF PRIMING', 'MONOBLOCK PUMP'].forEach(text => {
-        const textWidth = doc.widthOfString(text);
-        const textX = leftColX + (leftColWidth - textWidth) / 2;
-        doc.text(text, textX, yPosition);
-        yPosition += 16;
+        doc.text(text, leftColX, yPositionLeft, { width: leftColWidth, align: 'center' });
+        yPositionLeft += 16;
     });
 
-    // Add model centered (smaller)
-    yPosition += 4;
+    yPositionLeft += columns.leftModelY;
+    doc.fontSize(font.sizes.model);
     const modelText = `MODEL : ${model?.name || 'N/A'}`;
-    doc.fontSize(10);
-    const modelWidth = doc.widthOfString(modelText);
-    const modelX = leftColX + (leftColWidth - modelWidth) / 2;
-    doc.text(modelText, modelX, yPosition);
+    doc.text(modelText, leftColX, yPositionLeft, { width: leftColWidth, align: 'center' });
 
-    // Serial numbers: center the stack vertically in left column area so 3 items look balanced
-    yPosition += 12;
-    const boxWidth = leftColWidth - 30;
-    const boxX = leftColX + 15;
-    const boxHeight = 18;
-    let boxGap = 8;
+    const modelTextHeight = doc.heightOfString(modelText, { width: leftColWidth });
+    yPositionLeft += modelTextHeight;
 
-    // compute available vertical area for serials (leave space for specs/footer)
-    const serialAreaTop = yPosition;
-    const serialAreaBottom = startY + stickerHeight - 110; // reserve space for specs and footer
+    // Serial numbers
+    yPositionLeft += serialBoxes.yOffset;
+    const serialBoxWidth = leftColWidth - serialBoxes.boxWidthPadding;
+    const serialBoxX = leftColX + (serialBoxes.boxWidthPadding / 2);
+    
+    const serialAreaTop = yPositionLeft;
+    const serialAreaBottom = startY + height - serialBoxes.serialAreaReserveFooter;
     const availableHeight = Math.max(0, serialAreaBottom - serialAreaTop);
+    let totalBoxesH = items.length * serialBoxes.boxHeight + Math.max(0, items.length - 1) * serialBoxes.boxGap;
+    let currentBoxGap = serialBoxes.boxGap;
 
-    let totalBoxesH = items.length * boxHeight + Math.max(0, items.length - 1) * boxGap;
     if (totalBoxesH > availableHeight) {
-        // reduce gap if needed
-        boxGap = Math.max(3, Math.floor((availableHeight - (items.length * boxHeight)) / Math.max(1, items.length - 1)));
-        totalBoxesH = items.length * boxHeight + Math.max(0, items.length - 1) * boxGap;
+        currentBoxGap = Math.max(3, Math.floor((availableHeight - (items.length * serialBoxes.boxHeight)) / Math.max(1, items.length - 1)));
+        totalBoxesH = items.length * serialBoxes.boxHeight + Math.max(0, items.length - 1) * currentBoxGap;
     }
 
-    // small extra top margin so boxes don't stick too close to model/title
-    const serialTopExtra = 8;
-    const boxesStartY = serialAreaTop + serialTopExtra + Math.max(0, Math.floor((availableHeight - totalBoxesH) / 2));
+    const boxesStartY = serialAreaTop + serialBoxes.serialTopExtra + Math.max(0, Math.floor((availableHeight - totalBoxesH) / 2));
 
     items.forEach((item, index) => {
-        const boxY = boxesStartY + (index * (boxHeight + boxGap));
-        // Draw box
-        doc.rect(boxX, boxY, boxWidth, boxHeight).stroke();
-
-        // Add serial number text left-aligned with small padding and reduced font
-        const serialText = `PUMP S.NO : ${item.serialNumber}`;
-        doc.fontSize(9);
-        doc.text(serialText, boxX + 6, boxY + 3, { width: boxWidth - 12 });
+        const boxY = boxesStartY + (index * (serialBoxes.boxHeight + currentBoxGap));
+        doc.rect(serialBoxX, boxY, serialBoxWidth, serialBoxes.boxHeight).stroke();
+        doc.fontSize(font.sizes.serial).text(`PUMP S.NO : ${item.serialNumber}`, serialBoxX + 6, boxY + 3, { width: serialBoxWidth - 12 });
     });
 
-    // Right Column
-    let rightColY = startY + innerMargin;
+    // --- Right Column Content ---
+    let yPositionRight = startY + margin + qr.yOffset;
+    const qrCodeWidth = qr.width;
+    const qrCodeSpacing = qr.spacing;
 
-    // Add QR codes - use tighter spacing so codes sit side-by-side
-    const qrWidth = 48; // slightly smaller to allow tighter grouping
-    const qrSpacing = 8; // reduced spacing
-
-    if ((type === 'single_unit' || type === 'individual') && qrCodes.length === 2) {
-        // place near edges
-        doc.image(qrCodes[0], rightColX + 6, rightColY, { width: qrWidth });
-        doc.image(qrCodes[1], rightColX + rightColWidth - qrWidth - 6, rightColY, { width: qrWidth });
-    } else {
-        // center QR codes row for outer stickers
-        const totalQrWidth = (qrCodes.length * qrWidth) + ((qrCodes.length - 1) * qrSpacing);
-        const qrStartX = rightColX + Math.max(0, Math.floor((rightColWidth - totalQrWidth) / 2));
-        qrCodes.forEach((qrCode, index) => {
-            doc.image(qrCode, qrStartX + (index * (qrWidth + qrSpacing)), rightColY, { width: qrWidth });
-        });
+    if (qrCodes && qrCodes.length > 0) {
+        if ((type === 'single_unit' || type === 'individual') && qrCodes[0]) {
+            doc.image(qrCodes[0], rightColX + 6, yPositionRight, { width: qrCodeWidth });
+            doc.image(qrCodes[0], rightColX + rightColWidth - qrCodeWidth - 6, yPositionRight, { width: qrCodeWidth });
+        } else {
+            const validQrCodes = qrCodes.filter(Boolean);
+            const totalQrWidth = (validQrCodes.length * qrCodeWidth) + (Math.max(0, validQrCodes.length - 1) * qrCodeSpacing);
+            const qrStartX = rightColX + Math.max(0, (rightColWidth - totalQrWidth) / 2);
+            validQrCodes.forEach((qrCode, index) => {
+                doc.image(qrCode, qrStartX + (index * (qrCodeWidth + qrCodeSpacing)), yPositionRight, { width: qrCodeWidth });
+            });
+        }
     }
 
-    // Specifications section (move up to reduce top margin)
-    rightColY = startY + 72; // Aligned a bit higher with title
-    
-    // Calculate weight and price based on sticker type
-    const grossWeight = model?.specifications?.grossWeight || 'N/A';
-    // For outer box stickers, multiply weight by number of units
-    let displayWeight;
-    if (type === 'individual' || type === 'single_unit') {
-        // Individual stickers always show the original weight
-        displayWeight = grossWeight !== 'N/A' ? grossWeight + '' : 'N/A';
-    } else {
-        // For outer box stickers (2N/3N), multiply the weight by number of units
-        const unitType = items[0]?.orderType;
-        let multiplier = 1;
-        if (unitType === '2_units' || type === 'outer_2unit') multiplier = 2;
-        else if (unitType === '3_units' || type === 'outer_3unit') multiplier = 3;
-
-        displayWeight = grossWeight !== 'N/A' ? 
-            (parseFloat(grossWeight) * multiplier).toFixed(3) + 'kg' : 
-            'N/A';
+    // --- Specifications Section ---
+    yPositionRight = startY + columns.rightSpecsY;
+    const specsData = model?.specifications || {};
+    let displayWeight = 'N/A';
+    if (specsData.grossWeight) {
+        const multiplier = type.includes('outer') ? items.length : 1;
+        displayWeight = `${(parseFloat(specsData.grossWeight) * multiplier).toFixed(3)}kg`;
     }
-    
-    const mrpPrice = model?.specifications?.mrpPrice || 'N/A';  
-    const displayPrice = type === 'individual' ? 
-        `${mrpPrice}/-` : 
-        `${mrpPrice}/- Each`;
-    
-    const specs = [
-        ['QUANTITY', type === 'outer_2unit' ? '2N' : type === 'outer_3unit' ? '3N' : '1N'],
+    const displayPrice = type === 'individual' ? `${specsData.mrpPrice || 'N/A'}/-` : `${specsData.mrpPrice || 'N/A'}/- Each`;
+    let mfgDate = 'N/A';
+    try {
+        if (items[0]?.month && items[0]?.year) {
+            mfgDate = new Date(items[0].year, items[0].month - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        }
+    } catch (e) { console.error("Invalid date format:", e); }
+
+    const specItems = [
+        ['QUANTITY', type.includes('outer_') ? `${items.length}N` : '1N'],
         ['GROSS.WT', displayWeight],
-        ['kW/HP', `${model?.specifications?.kwHp || 'N/A'}`],
-        ['Voltage', `${model?.specifications?.voltage || 'N/A'}`],
+        ['kW/HP', specsData.kwHp || 'N/A'],
+        ['Voltage', specsData.voltage || 'N/A'],
         ['MRP Rs.', displayPrice],
-        ['MFG DATE', `${items[0]?.month && items[0]?.year ? new Date(items[0].year, items[0].month - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'N/A'}`],
+        ['MFG DATE', mfgDate],
     ];
 
-    const labelWidth = 70; // Fixed width for labels
-    specs.forEach(([label, value], index) => {
-        // Add extra margin for MFG DATE
-        if (label === 'MFG DATE') {
-            rightColY += 5;
-        }
-        
-    // Increase font sizes for right-side specs
-    doc.font('Helvetica-Bold');
-    doc.fontSize(9);
-    doc.text(`${label}`, rightColX, rightColY);
-    doc.font('Helvetica');
-    doc.fontSize(9);
-    doc.text(`: ${value}`, rightColX + labelWidth, rightColY);
-        
-        // Add tax note right after MRP Rs.
+    specItems.forEach(([label, value]) => {
+        if (label === 'MFG DATE') yPositionRight += 5;
+        doc.font(font.bold).fontSize(font.sizes.specsLabel).text(label, rightColX, yPositionRight);
+        doc.font(font.regular).fontSize(font.sizes.specsValue).text(`: ${value}`, rightColX + columns.specLabelWidth, yPositionRight);
+        yPositionRight += 16;
         if (label === 'MRP Rs.') {
-            rightColY += 10;
-            doc.fontSize(7)
-                .text('(Incl of all taxes)', rightColX, rightColY);
-            rightColY += 8;
-        } else {
-            rightColY += 16; // Adjusted line spacing
+            doc.fontSize(font.sizes.taxNote).text('(Incl of all taxes)', rightColX, yPositionRight - 6);
+            yPositionRight += 2;
         }
     });
 
-
-    // Add footer centered
-    const footerY = startY + stickerHeight - 40;
-    const footerWidth = stickerWidth - (innerMargin * 2);
-    const footerX = startX + innerMargin;
-
-    doc.fontSize(9);
+    // --- Footer ---
+    const footerY = startY + height - footer.yOffset;
+    doc.fontSize(font.sizes.footer);
     [
         'MKTD BY - SUPER POWER ENERGY',
         'F-40, Road No. 2 VKI Industrial Area, Jaipur, Rajasthan - 302013',
         'Email : ujalaustomers@gmail.com | Service No - Delhi : 8595725671 , Others : 63769 11917'
     ].forEach((line, index) => {
-        doc.text(line, footerX, footerY + (index * 10), { 
-            width: footerWidth, 
-            align: 'center'
-        });
+        doc.text(line, startX + margin, footerY + (index * footer.lineSpacing), { width: width - (margin * 2), align: 'center' });
     });
 };
 
-
-const generatePDFForBox = async (boxKey) => {
-    const [orderId, , boxNumber] = boxKey.split('-');
-    
-    const orderItems = await OrderItem.find({ 
-        orderId, 
-        boxNumber: parseInt(boxNumber) 
-    }).populate('category').populate('model');
-    
-    if (!orderItems.length) {
-        throw new Error('Box not found');
-    }
-
-    // Create a new PDF document
-    const doc = new PDFDocument({
-        size: [842, 595], // A4 landscape
-        layout: 'landscape',
-        margin: 20
-    });
-
-    // Store PDF in memory buffer
+const createPdfStream = () => {
+    const doc = new PDFDocument({ size: [842, 595], layout: 'landscape', margin: 20 });
     const chunks = [];
     doc.on('data', chunks.push.bind(chunks));
-    
-    // Calculate positions for stickers on the page
+    const promise = new Promise((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
+    return { doc, promise };
+};
+
+const generatePDFForBox = async (boxKey) => {
+    // This function is still needed for single box downloads and remains unchanged
+    const [orderId, , boxNumber] = boxKey.split('-');
+    const orderItems = await OrderItem.find({ orderId, boxNumber: parseInt(boxNumber) }).populate('category').populate('model');
+    if (!orderItems.length) throw new Error(`Box not found for key: ${boxKey}`);
+
+    const { doc, promise } = createPdfStream();
+    const model = orderItems[0].model;
     const pageMargin = 20;
-    const pageWidth = doc.page.width - (pageMargin * 2);
-    const pageHeight = doc.page.height - (pageMargin * 2);
-    const stickerWidth = 400;  // Match the width from generateBoxSticker
-    const stickerHeight = 250; // Match the sticker height used by generateBoxSticker
-    const horizontalSpacing = 20;
-    const verticalSpacing = 75; // Increased spacing for better separation
-    // const stickersPerRow = Math.max(1, Math.floor(pageWidth / (stickerWidth + horizontalSpacing)));
-    // const rowsPerPage = Math.max(1, Math.floor(pageHeight / (stickerHeight + verticalSpacing)));
-    
-    // Helper function to check if we need a new page
-    const checkNewPage = (currentY) => {
-        if (currentY + stickerHeight > pageHeight + pageMargin) {
+    const stickerHeight = stickerConfig.height;
+    const verticalSpacing = 10;
+    let currentY = pageMargin;
+
+    const checkNewPage = (y) => {
+        if (y + stickerHeight > doc.page.height - pageMargin) {
             doc.addPage();
             return pageMargin;
         }
-        return currentY;
+        return y;
     };
-    
-    if (orderItems[0].orderType === '2_units') {
-        // Get QR codes for both items
-        const qrCodes = await Promise.all(
-            orderItems.map(item => generateQRCode({
-                serialNumber: item.serialNumber,
-                model: item.model?.name,
-                category: item.category?.name,
-                orderId: item.orderId
-            }))
-        );
 
-        let currentY = pageMargin;
+    const boxQrCodes = await Promise.all(
+        orderItems.map(item => generateQRCode({ serialNumber: item.serialNumber, model: item.model?.name, orderId: item.orderId }))
+    );
 
-        // Generate outer box sticker
+    if (orderItems.length > 1) { // It's a multi-unit box
         currentY = checkNewPage(currentY);
         await generateBoxSticker(doc, {
-            type: 'outer_2unit',
-            items: orderItems,
-            qrCodes,
-            model: orderItems[0].model,
-            startX: pageMargin,
-            startY: currentY
+            type: `outer_${orderItems.length}unit`, items: orderItems, qrCodes: boxQrCodes, model, startX: pageMargin, startY: currentY
         });
-
-        // Generate individual stickers
         for (let i = 0; i < orderItems.length; i++) {
             currentY += stickerHeight + verticalSpacing;
             currentY = checkNewPage(currentY);
             await generateBoxSticker(doc, {
-                type: 'individual',
-                items: [orderItems[i]],
-                qrCodes: [qrCodes[i], qrCodes[i]],
-                model: orderItems[i].model,
-                startX: pageMargin,
-                startY: currentY
+                type: 'individual', items: [orderItems[i]], qrCodes: [boxQrCodes[i], boxQrCodes[i]], model: orderItems[i].model, startX: pageMargin, startY: currentY
             });
         }
-    } else if (orderItems[0].orderType === '3_units') {
-        // Get QR codes for all three items
-        const qrCodes = await Promise.all(
-            orderItems.map(item => generateQRCode({
-                serialNumber: item.serialNumber,
-                model: item.model?.name,
-                category: item.category?.name,
-                orderId: item.orderId
-            }))
-        );
-
-        let currentY = pageMargin;
-
-        // Generate outer box sticker
-        currentY = checkNewPage(currentY);
-        await generateBoxSticker(doc, {
-            type: 'outer_3unit',
-            items: orderItems,
-            qrCodes,
-            model: orderItems[0].model,
-            startX: pageMargin,
-            startY: currentY
-        });
-
-        // Generate individual stickers
-        for (let i = 0; i < orderItems.length; i++) {
-            currentY += stickerHeight + verticalSpacing;
+    } else { // It's a single-unit box
+        for (let i = 0; i < 2; i++) {
             currentY = checkNewPage(currentY);
             await generateBoxSticker(doc, {
-                type: 'individual',
-                items: [orderItems[i]],
-                qrCodes: [qrCodes[i], qrCodes[i]],
-                model: orderItems[i].model,
-                startX: pageMargin,
-                startY: currentY
+                type: 'individual', items: [orderItems[0]], qrCodes: [boxQrCodes[0], boxQrCodes[0]], model, startX: pageMargin, startY: currentY
             });
+            currentY += stickerHeight + verticalSpacing;
         }
-    } else {
-        // Single unit - generate QR code
-        const qrCode = await generateQRCode({
-            serialNumber: orderItems[0].serialNumber,
-            model: orderItems[0].model?.name,
-            category: orderItems[0].category?.name,
-            orderId: orderItems[0].orderId
-        });
-
-        let currentY = pageMargin;
-        
-        // Generate first sticker
-        currentY = checkNewPage(currentY);
-        await generateBoxSticker(doc, {
-            type: 'single_unit',
-            items: [orderItems[0]],
-            qrCodes: [qrCode, qrCode],
-            model: orderItems[0].model,
-            startX: pageMargin,
-            startY: currentY
-        });
-
-        // Generate second sticker
-        currentY += stickerHeight + verticalSpacing;
-        currentY = checkNewPage(currentY);
-        await generateBoxSticker(doc, {
-            type: 'single_unit',
-            items: [orderItems[0]],
-            qrCodes: [qrCode, qrCode],
-            model: orderItems[0].model,
-            startX: pageMargin,
-            startY: currentY
-        });
     }
-
-    // End the document
     doc.end();
-
-    // Return promise that resolves with the PDF buffer
-    return new Promise((resolve) => {
-        doc.on('end', () => {
-            resolve(Buffer.concat(chunks));
-        });
-    });
+    return promise;
 };
 
+// ## FIXED FUNCTION ##
+const generateCombinedPDF = async (orderItems) => {
+    const { doc, promise } = createPdfStream();
+    const pageMargin = 20;
+    const stickerHeight = stickerConfig.height;
+    const verticalSpacing = 10;
+    let currentY = pageMargin;
 
+    // Step 1: Group items by their box key
+    const groupedByBox = orderItems.reduce((acc, item) => {
+        const boxKey = `${item.orderId}-box-${item.boxNumber}`;
+        if (!acc[boxKey]) {
+            acc[boxKey] = [];
+        }
+        acc[boxKey].push(item);
+        return acc;
+    }, {});
+
+    const checkNewPage = (y) => {
+        if (y + stickerHeight > doc.page.height - pageMargin) {
+            doc.addPage();
+            return pageMargin;
+        }
+        return y;
+    };
+
+    // Step 2: Loop over each box group
+    for (const boxKey in groupedByBox) {
+        const itemsInBox = groupedByBox[boxKey];
+        const model = itemsInBox[0].model; // Assume model is consistent per box
+
+        const boxQrCodes = await Promise.all(
+            itemsInBox.map(item => generateQRCode({ serialNumber: item.serialNumber, model: item.model?.name, orderId: item.orderId }))
+        );
+
+        // Step 3: Apply the same logic as generatePDFForBox
+        if (itemsInBox.length > 1) { // It's a multi-unit box
+            currentY = checkNewPage(currentY);
+            // Generate the outer sticker for this box
+            await generateBoxSticker(doc, {
+                type: `outer_${itemsInBox.length}unit`, items: itemsInBox, qrCodes: boxQrCodes, model, startX: pageMargin, startY: currentY
+            });
+            // Generate individual stickers for this box
+            for (let i = 0; i < itemsInBox.length; i++) {
+                currentY += stickerHeight + verticalSpacing;
+                currentY = checkNewPage(currentY);
+                await generateBoxSticker(doc, {
+                    type: 'individual', items: [itemsInBox[i]], qrCodes: [boxQrCodes[i], boxQrCodes[i]], model: itemsInBox[i].model, startX: pageMargin, startY: currentY
+                });
+            }
+        } else { // It's a single-unit box
+            for (let i = 0; i < 2; i++) {
+                currentY += stickerHeight + verticalSpacing;
+                currentY = checkNewPage(currentY);
+                await generateBoxSticker(doc, {
+                    type: 'individual', items: [itemsInBox[0]], qrCodes: [boxQrCodes[0], boxQrCodes[0]], model, startX: pageMargin, startY: currentY
+                });
+            }
+        }
+        // Add a larger space between different boxes in the same PDF
+        currentY += stickerHeight + verticalSpacing;
+    }
+
+    doc.end();
+    return promise;
+};
+
+// --- API Controllers ---
 export const generateBoxStickers = async (req, res) => {
     try {
         const { boxKey } = req.params;
-        const { download } = req.query;
-        
         const pdf = await generatePDFForBox(boxKey);
-        
         res.setHeader('Content-Type', 'application/pdf');
-        const disposition = download === 'true' ? 'attachment' : 'inline';
-        res.setHeader('Content-Disposition', `${disposition}; filename="stickers-${boxKey}.pdf"`);
+        res.setHeader('Content-Disposition', `${req.query.download === 'true' ? 'attachment' : 'inline'}; filename="stickers-${boxKey}.pdf"`);
         res.send(pdf);
-        
     } catch (error) {
         console.error('Error generating PDF:', error);
-        res.status(500).json({ 
-            message: 'Error generating PDF',
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
+        res.status(500).json({ message: 'Error generating PDF', error: error.message });
     }
 };
 
 export const downloadMultiplePDFs = async (req, res) => {
     try {
         const { boxKeys } = req.body;
-        
         if (!boxKeys || !Array.isArray(boxKeys) || boxKeys.length === 0) {
             return res.status(400).json({ message: 'Box keys array is required' });
         }
-        
         const archive = archiver('zip', { zlib: { level: 9 } });
-        
         res.setHeader('Content-Type', 'application/zip');
         res.setHeader('Content-Disposition', 'attachment; filename="stickers-batch.zip"');
-        
         archive.pipe(res);
-        
         for (const boxKey of boxKeys) {
             try {
                 const pdf = await generatePDFForBox(boxKey);
-                archive.append(pdf, { name: `stickers-${boxKey}.pdf` });
+                archive.append(pdf, { name: `box-stickers-${boxKey}.pdf` });
             } catch (error) {
-                console.error(`Error generating PDF for ${boxKey}:`, error);
+                console.error(`Error for ${boxKey}:`, error.message);
+                archive.append(`Failed for ${boxKey}: ${error.message}`, { name: `ERROR-${boxKey}.txt` });
             }
         }
-        
         await archive.finalize();
-        
     } catch (error) {
         console.error('Error generating ZIP:', error);
         res.status(500).json({ message: 'Error generating ZIP file' });
+    }
+};
+
+export const downloadCombinedPDFs = async (req, res) => {
+    try {
+        const { itemIds } = req.body;
+        if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
+            return res.status(400).json({ message: 'Item IDs array is required' });
+        }
+        const orderItems = await OrderItem.find({ _id: { $in: itemIds } }).populate('category').populate('model');
+        if (orderItems.length === 0) {
+            return res.status(404).json({ message: 'No order items found' });
+        }
+        // Call the newly fixed function
+        const pdf = await generateCombinedPDF(orderItems);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="combined-stickers-${Date.now()}.pdf"`);
+        res.send(pdf);
+    } catch (error) {
+        console.error('Error generating combined PDF:', error);
+        res.status(500).json({ message: 'Error generating combined PDF', error: error.message });
     }
 };

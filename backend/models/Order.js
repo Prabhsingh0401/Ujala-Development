@@ -59,8 +59,13 @@ const orderSchema = new mongoose.Schema({
     status: {
         type: String,
         required: true,
-        enum: ['Pending', 'In Progress', 'Completed', 'Cancelled'],
+        // FIX: Added 'Dispatched' to the list of valid statuses
+        enum: ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Dispatched'],
         default: 'Pending'
+    },
+    // FIX: Removed redundant 'dispatched' boolean field
+    dispatchedAt: {
+        type: Date
     },
     isTransferredToProduct: {
         type: Boolean,
@@ -70,7 +75,6 @@ const orderSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Individual order item schema for each unit with unique serial number
 const orderItemSchema = new mongoose.Schema({
     orderId: {
         type: String,
@@ -122,18 +126,25 @@ const orderItemSchema = new mongoose.Schema({
     status: {
         type: String,
         required: true,
-        enum: ['Pending', 'In Progress', 'Completed', 'Cancelled'],
+        // FIX: Added 'Dispatched' to the list of valid statuses
+        enum: ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Dispatched'],
         default: 'Pending'
     },
+    // FIX: Removed redundant 'dispatched' boolean field
     isTransferredToProduct: {
         type: Boolean,
         default: false
+    },
+    completedAt: {
+        type: Date
+    },
+    dispatchedAt: {
+        type: Date
     }
 }, {
     timestamps: true
 });
 
-// Counter schema for factory-specific serial numbers
 const factoryCounterSchema = new mongoose.Schema({
     factoryId: {
         type: mongoose.Schema.Types.ObjectId,

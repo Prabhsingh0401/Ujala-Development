@@ -1,22 +1,20 @@
-
 import mongoose from 'mongoose';
 import Order, { OrderItem, FactoryCounter } from '../models/Order.js';
 import Product from '../models/Product.js';
 import Factory from '../models/Factory.js';
 import Model from '../models/Model.js';
 
+// ... (getOrders, createOrder, updateOrder, deleteOrder functions remain the same) ...
 export const getOrders = async (req, res) => {
     try {
         const { factory } = req.query;
         let query = {};
 
         if (factory) {
-            // Find the factory by name to get its ID
             const factoryObj = await Factory.findOne({ name: factory });
             if (factoryObj) {
                 query.factory = factoryObj._id;
             } else {
-                // If factory not found, return empty array
                 return res.status(200).json([]);
             }
         }
@@ -35,17 +33,13 @@ export const createOrder = async (req, res) => {
     try {
         const { month, year, factory: factoryId, model: modelId, quantity, orderType, ...orderData } = req.body;
         
-        // Validate required fields
         if (!month || !year || !factoryId || !modelId || !quantity || !orderType) {
             return res.status(400).json({ message: 'Month, year, factory, model, quantity, and orderType are required' });
         }
 
-        // Set units per box based on order type
         const unitsPerBox = orderType === '2_units' ? 2 : orderType === '3_units' ? 3 : 1;
-        // Calculate total individual units (quantity = boxes, totalUnits = individual items)
         const totalUnits = quantity * unitsPerBox;
 
-        // Find factory and model
         const factory = await Factory.findById(factoryId);
         if (!factory) {
             return res.status(404).json({ message: 'Factory not found' });
@@ -56,7 +50,6 @@ export const createOrder = async (req, res) => {
             return res.status(404).json({ message: 'Model not found' });
         }
 
-        // Generate order ID
         const latestOrder = await Order.findOne().sort({ orderId: -1 });
         let newOrderId;
         if (latestOrder) {
@@ -66,36 +59,32 @@ export const createOrder = async (req, res) => {
             newOrderId = 'ORD00001';
         }
 
-        // Get or create factory counter
         let factoryCounter = await FactoryCounter.findOne({ factoryId });
         if (!factoryCounter) {
             factoryCounter = new FactoryCounter({ factoryId, counter: 10000 });
         }
 
-        // Generate serial number base: MMYY + FactoryCode + ModelCode
         const monthStr = String(month).padStart(2, '0');
         const yearStr = String(year).slice(-2);
         const serialBase = `${monthStr}${yearStr}${factory.code.toUpperCase()}${model.code.toUpperCase()}`;
 
-        // Create main order
         const order = {
             ...orderData,
             orderId: newOrderId,
             serialNumber: `${serialBase}${factoryCounter.counter + 1}-${factoryCounter.counter + totalUnits}`,
             month,
             year,
-            quantity, // This represents boxes
+            quantity,
             factory: factoryId,
             model: modelId,
             orderType,
             unitsPerBox,
-            totalUnits // Total individual units
+            totalUnits
         };
 
         const newOrder = new Order(order);
         await newOrder.save();
 
-        // Create individual order items for each unit
         const orderItems = [];
         for (let i = 1; i <= totalUnits; i++) {
             factoryCounter.counter += 1;
@@ -157,31 +146,24 @@ export const updateOrder = async (req, res) => {
             }
         }
 
-        // Update the main order
         const updatedOrder = await Order.findByIdAndUpdate(_id, { ...order, _id }, { new: true })
             .populate('factory')
             .populate('category')
             .populate('model');
 
-        // Always update OrderItems when factory, category, or model is provided
         const updateData = {};
         if (order.factory) updateData.factory = order.factory;
         if (order.category) updateData.category = order.category;
         if (order.model) updateData.model = order.model;
         
         if (Object.keys(updateData).length > 0) {
-            
-            // First check if OrderItems exist
             const existingItems = await OrderItem.find({ orderId: existingOrder.orderId });
             
             if (existingItems.length > 0) {
-                const updateResult = await OrderItem.updateMany(
+                await OrderItem.updateMany(
                     { orderId: existingOrder.orderId },
                     { $set: updateData }
                 );
-                
-                // Verify the update worked
-                const updatedItems = await OrderItem.find({ orderId: existingOrder.orderId });
             } else {
                 console.log('No OrderItems found for orderId:', existingOrder.orderId);
             }
@@ -205,24 +187,19 @@ export const deleteOrder = async (req, res) => {
             return res.status(404).json({ message: 'Order not found' });
         }
 
-        // Delete associated OrderItem records first
         await OrderItem.deleteMany({ orderId: order.orderId });
         
-        // Delete the main order
         await Order.deleteOne({ _id: id });
         
-        // Reset factory counter based on remaining OrderItems for this factory
         const remainingItems = await OrderItem.find({ factory: order.factory }).sort({ serialNumber: -1 }).limit(1);
         
         if (remainingItems.length === 0) {
-            // No remaining items, reset counter to default
             await FactoryCounter.findOneAndUpdate(
                 { factoryId: order.factory },
                 { counter: 10000 },
                 { upsert: true }
             );
         } else {
-            // Extract counter from last remaining serial number
             const lastSerial = remainingItems[0].serialNumber;
             const counterMatch = lastSerial.match(/(\d+)$/);
             if (counterMatch) {
@@ -241,6 +218,43 @@ export const deleteOrder = async (req, res) => {
     }
 }
 
+export const markOrderAsDispatched = async (req, res) => {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(404).send('No order with that id');
+    }
+
+    try {
+        const order = await Order.findById(id);
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        if (order.status !== 'Completed') {
+            return res.status(400).json({ message: 'Order must be completed before it can be dispatched' });
+        }
+        
+        // FIX: Update status and dispatchedAt timestamp
+        order.status = 'Dispatched';
+        order.dispatchedAt = new Date();
+        
+        const updatedOrder = await order.save();
+
+        // FIX: Update status and dispatchedAt on all associated order items
+        await OrderItem.updateMany(
+            { orderId: order.orderId },
+            { $set: { status: 'Dispatched', dispatchedAt: new Date() } }
+        );
+
+        res.json(updatedOrder);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+// FIX: Floating code block is now a correctly named function
 export const updateOrderStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -249,8 +263,7 @@ export const updateOrderStatus = async (req, res) => {
         return res.status(404).send('No order with that id');
     }
 
-    // Validate status value
-    const validStatuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+    const validStatuses = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Dispatched'];
     if (!validStatuses.includes(status)) {
         return res.status(400).json({
             message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
@@ -258,15 +271,20 @@ export const updateOrderStatus = async (req, res) => {
     }
     
     try {
-        // Check if the order exists first
         const existingOrder = await Order.findById(id);
         if (!existingOrder) {
             return res.status(404).json({ message: 'Order not found' });
         }
 
+        const updateData = { status };
+        // Set completion timestamp if status is 'Completed'
+        if (status === 'Completed') {
+            updateData.completedAt = new Date();
+        }
+
         const updatedOrder = await Order.findByIdAndUpdate(
             id,
-            { status },
+            updateData,
             { new: true }
         ).populate('factory')
          .populate('category')
@@ -275,6 +293,11 @@ export const updateOrderStatus = async (req, res) => {
         if (!updatedOrder) {
             return res.status(404).json({ message: 'Order not found' });
         }
+
+        await OrderItem.updateMany(
+            { orderId: updatedOrder.orderId },
+            { $set: updateData }
+        );
         
         res.json(updatedOrder);
     } catch (error) {
@@ -284,18 +307,14 @@ export const updateOrderStatus = async (req, res) => {
 
 export const cleanupOrphanedOrderItems = async (req, res) => {
     try {
-        // Find all OrderItem records
         const orderItems = await OrderItem.find({});
         
-        // Get all existing Order IDs
         const existingOrders = await Order.find({}, { orderId: 1 });
         const existingOrderIds = existingOrders.map(order => order.orderId);
         
-        // Find orphaned OrderItems
         const orphanedItems = orderItems.filter(item => !existingOrderIds.includes(item.orderId));
         
         if (orphanedItems.length > 0) {
-            // Delete orphaned OrderItems
             const orphanedOrderIds = orphanedItems.map(item => item.orderId);
             await OrderItem.deleteMany({ orderId: { $in: orphanedOrderIds } });
             
@@ -317,22 +336,19 @@ export const resetFactoryCounters = async (req, res) => {
         const resetResults = [];
         
         for (const factory of factories) {
-            // Find the highest counter for this factory
             const lastItem = await OrderItem.findOne({ factory: factory._id })
                 .sort({ serialNumber: -1 })
                 .limit(1);
             
-            let newCounter = 10000; // default
+            let newCounter = 10000;
             
             if (lastItem) {
-                // Extract counter from serial number
                 const counterMatch = lastItem.serialNumber.match(/(\d+)$/);
                 if (counterMatch) {
                     newCounter = parseInt(counterMatch[1]);
                 }
             }
             
-            // Update or create factory counter
             await FactoryCounter.findOneAndUpdate(
                 { factoryId: factory._id },
                 { counter: newCounter },
@@ -357,26 +373,27 @@ export const resetFactoryCounters = async (req, res) => {
 
 export const getOrderFactoryStats = async (req, res) => {
     try {
-        const { id } = req.params; // order ID
+        const { id } = req.params;
         
-        const order = await Order.findById(id);
+        const order = await Order.findById(id).populate('factory');
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
         
-        // Get all order items for this order
         const orderItems = await OrderItem.find({ orderId: order.orderId });
         
-        // Calculate completion stats
         const totalItems = orderItems.length;
-        const completedItems = orderItems.filter(item => item.status === 'Completed').length;
-        const pendingItems = totalItems - completedItems;
+        // FIX: Corrected logic to count each status properly
+        const completedItems = orderItems.filter(item => item.status === 'Completed' || item.status === 'Dispatched').length;
+        const dispatchedItems = orderItems.filter(item => item.status === 'Dispatched').length;
+        const pendingItems = orderItems.filter(item => item.status === 'Pending' || item.status === 'In Progress').length;
         
         res.json({
             orderId: order.orderId,
             factoryName: order.factory?.name,
             totalItems,
             completedItems,
+            dispatchedItems,
             pendingItems,
             completionPercentage: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
         });
@@ -421,7 +438,8 @@ export const transferToProducts = async (req, res) => {
 
         const orderItems = await OrderItem.find({
             _id: { $in: orderItemIds },
-            status: 'Completed',
+            // FIX: Check for status 'Dispatched' instead of boolean
+            status: 'Dispatched',
             isTransferredToProduct: { $ne: true }
         })
         .populate('factory')
@@ -430,7 +448,7 @@ export const transferToProducts = async (req, res) => {
         
         if (orderItems.length === 0) {
             return res.status(400).json({ 
-                message: 'No valid completed order items found or items already transferred'
+                message: 'No dispatched order items found for transfer or items already transferred'
             });
         }
 
@@ -457,7 +475,7 @@ export const transferToProducts = async (req, res) => {
                     year: item.year,
                     category: item.category,
                     model: item.model,
-                    quantity: 1, // Each order item is a single product
+                    quantity: 1,
                     orderType: item.orderType,
                     unitsPerBox: item.unitsPerBox,
                     factory: item.factory,
@@ -481,7 +499,6 @@ export const transferToProducts = async (req, res) => {
             }
         }
 
-        // Also update the main order if all items are transferred
         const orderIds = [...new Set(orderItems.map(item => item.orderId))];
         for (const orderId of orderIds) {
             const allItems = await OrderItem.find({ orderId: orderId });

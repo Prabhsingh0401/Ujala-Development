@@ -1,6 +1,6 @@
 
 import express from 'express';
-import { getOrders, createOrder, updateOrder, deleteOrder, updateOrderStatus, transferToProducts, cleanupOrphanedOrderItems, resetFactoryCounters, getOrderFactoryStats, getOrderItems } from '../controllers/orderController.js';
+import { getOrders, createOrder, updateOrder, deleteOrder, updateOrderStatus, markOrderAsDispatched, transferToProducts, cleanupOrphanedOrderItems, resetFactoryCounters, getOrderFactoryStats, getOrderItems } from '../controllers/orderController.js';
 
 const router = express.Router();
 
@@ -9,6 +9,7 @@ router.post('/', createOrder);
 router.patch('/:id', updateOrder);
 router.delete('/:id', deleteOrder);
 router.patch('/:id/status', updateOrderStatus);
+router.put('/:id/dispatch', markOrderAsDispatched);
 router.get('/:id/factory-stats', getOrderFactoryStats);
 router.get('/:id/items', getOrderItems);
 router.post('/transfer-to-products', transferToProducts);

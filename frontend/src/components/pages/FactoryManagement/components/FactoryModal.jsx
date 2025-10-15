@@ -8,6 +8,8 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
         location: '',
         contactPerson: '',
         contactPhone: '',
+        gstNumber: '',
+        address: '',
         username: '',
         password: ''
     });
@@ -23,6 +25,8 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
                 location: '',
                 contactPerson: '',
                 contactPhone: '',
+                gstNumber: '',
+                address: '',
                 username: '',
                 password: ''
             });
@@ -38,7 +42,7 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
 
     return (
         <div className="fixed inset-0 bg-black/80 bg-opacity-20 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg p-4 sm:p-6 lg:p-8 w-full max-w-4xl max-h-[95vh] overflow-y-auto">
+            <div className="bg-white rounded-lg p-4 sm:p-6 lg:p-8 w-full max-w-4xl max-h-[95vh] overflow-y-auto scrollbar-hide">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">
                         {isEditing ? 'Edit Factory' : 'Add New Factory'}
@@ -52,7 +56,7 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {['name', 'code', 'location', 'contactPerson', 'contactPhone'].map((field) => (
+                        {['name', 'code', 'location', 'contactPerson', 'contactPhone', 'gstNumber', 'address'].map((field) => (
                             <div key={field}>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     {field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')} *

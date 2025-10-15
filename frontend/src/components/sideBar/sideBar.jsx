@@ -41,24 +41,24 @@ const sidebarItems = [
       },
     ],
   },
-  {
-    title: 'Products',
-    path: '/products',
-    icon: Package,
-    color: 'yellow',
-  },
-  {
-    title: 'Distributors',
-    path: '/distributors',
-    icon: Users,
-    color: 'purple',
-  },
-  {
-    title: 'Dealers',
-    path: '/dealers',
-    icon: Truck,
-    color: 'red',
-  },
+  // {
+  //   title: 'Products',
+  //   path: '/products',
+  //   icon: Package,
+  //   color: 'yellow',
+  // },
+  // {
+  //   title: 'Distributors',
+  //   path: '/distributors',
+  //   icon: Users,
+  //   color: 'purple',
+  // },
+  // {
+  //   title: 'Dealers',
+  //   path: '/dealers',
+  //   icon: Truck,
+  //   color: 'red',
+  // },
 ];
 
 const getActiveClasses = (color) => {
@@ -214,7 +214,7 @@ export function SideBar({ sidebarOpen, toggleSidebar }) {
 
                         {/* Children Links */}
                         <ul
-                          className={`space-y-2 transition-all duration-300 overflow-hidden  ${
+                          className={`space-y-2 mt-2 transition-all duration-300 overflow-hidden  ${
                             crmOpen
                               ? 'max-h-40 opacity-100'
                               : 'max-h-0 opacity-0'
@@ -287,7 +287,7 @@ export function SideBar({ sidebarOpen, toggleSidebar }) {
           {/* User Info & Logout */}
           <div className="mt-auto">
             {/* Notifications - Only show for admin */}
-            {user?.role === 'admin' && (
+            {/* {user?.role === 'admin' && (
               <div className="mb-4">
                 {sidebarOpen ? (
                   <Link to="/notifications" className={`flex items-center py-2 px-3 rounded-xl group transition-all duration-200 ${isActive('/notifications') ? 'bg-white sidebar-pill' : ''}`}>
@@ -308,7 +308,7 @@ export function SideBar({ sidebarOpen, toggleSidebar }) {
                   </Link>
                 )}
               </div>
-            )}
+            )} */}
             
             <div className="mt-4">
               {sidebarOpen ? (

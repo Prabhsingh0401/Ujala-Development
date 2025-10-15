@@ -1,10 +1,12 @@
 import express from 'express';
 import {
-    getDashboardCounts
+    getDashboardStats, 
+    getOrderStats
 } from '../controllers/dashboardController.js';
 
 const router = express.Router();
 
-router.get('/counts', getDashboardCounts);
+router.get('/counts', getDashboardStats); 
+router.get('/stats', getOrderStats);
 
 export default router;

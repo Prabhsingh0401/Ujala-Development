@@ -124,6 +124,39 @@ export const useOrders = () => {
     }
   };
 
+  const markOrderAsDispatched = async (id) => {
+    try {
+      const { data } = await orderService.markOrderAsDispatched(id);
+      const updatedOrders = orders.map(order => order._id === id ? data : order);
+      setOrders(updatedOrders);
+      updateStatusTabCounts(updatedOrders);
+      toast.success('Order marked as dispatched');
+      return true;
+    } catch (error) {
+      toast.error('Error marking order as dispatched');
+      console.error('Error marking order as dispatched:', error);
+      return false;
+    }
+  };
+
+  const bulkUpdateOrderStatus = async (itemIds, status) => {
+    try {
+      const { data } = await orderService.bulkUpdateOrderStatus(itemIds, status);
+      const updatedOrders = orders.map(order => {
+        const updatedItem = data.find(item => item._id === order._id);
+        return updatedItem || order;
+      });
+      setOrders(updatedOrders);
+      updateStatusTabCounts(updatedOrders);
+      toast.success(`Order status updated to ${status}`);
+      return true;
+    } catch (error) {
+      toast.error('Error updating order status');
+      console.error('Error updating order status:', error);
+      return false;
+    }
+  };
+
   const transferToProducts = async (orderItemIds) => {
     if (orderItemIds.length === 0) {
       toast.error('Please select items to transfer');
@@ -167,6 +200,8 @@ export const useOrders = () => {
     updateOrder,
     deleteOrder,
     updateOrderStatus,
+    markOrderAsDispatched,
+    bulkUpdateOrderStatus,
     transferToProducts,
     refreshOrders: fetchData
   };

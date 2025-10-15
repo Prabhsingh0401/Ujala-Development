@@ -3,13 +3,9 @@ import ListComponent from '../../../global/ListComponent';
 
 export function OrderTable({
   orders,
-  selectedOrders,
-  onSelectOrder,
-  onSelectAll,
   onView,
   onEdit,
   onDelete,
-  onStatusChange
 }) {
   const getOrderTypeDisplay = (orderType) => {
     const types = {
@@ -40,7 +36,7 @@ export function OrderTable({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BOXES</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TOTAL UNITS</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ORDER TYPE</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
+            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th> */}
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
           </tr>
         </thead>
@@ -60,19 +56,6 @@ export function OrderTable({
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getOrderTypeDisplay(order.orderType).bgColor} ${getOrderTypeDisplay(order.orderType).textColor}`}>
                   {getOrderTypeDisplay(order.orderType).label}
                 </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${order.status === 'Completed' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                  <select
-                    value={order.status}
-                    onChange={(e) => onStatusChange(order._id, e.target.value)}
-                    className="px-2 py-1 text-xs font-medium border border-gray-200 rounded-md cursor-pointer focus:ring-2 focus:ring-[#4d55f5] focus:border-[#4d55f5] bg-white"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Completed">Completed</option>
-                  </select>
-                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <div className="flex items-center space-x-2">

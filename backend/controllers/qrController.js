@@ -45,7 +45,12 @@ export const updateProductStatus = async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
         
-        orderItem.status = status;
+        if (orderItem.status === 'Pending') {
+            orderItem.status = 'Completed';
+            orderItem.completedAt = new Date();
+        } else {
+            return res.status(400).json({ message: `Cannot change status from ${orderItem.status} to Completed` });
+        }
         await orderItem.save();
         
         res.json({ message: 'Product status updated successfully', orderItem });

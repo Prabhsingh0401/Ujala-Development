@@ -58,9 +58,8 @@ export const getFactoryOrders = async (factoryId) => {
     }
 };
 
-export const updateOrderItemStatus = async (factoryId, itemId, currentStatus) => {
+export const updateOrderItemStatus = async (factoryId, itemId, newStatus) => {
     try {
-        const newStatus = currentStatus === 'Completed' ? 'Pending' : 'Completed';
         await axios.patch(`${API_URL}/${factoryId}/orders/${itemId}/status`, {
             status: newStatus
         });

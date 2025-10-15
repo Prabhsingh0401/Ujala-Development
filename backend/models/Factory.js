@@ -28,6 +28,16 @@ const factorySchema = new mongoose.Schema({
         required: [true, 'Contact phone is required'],
         trim: true
     },
+    gstNumber: {
+        type: String,
+        required: [true, 'GST number is required'],
+        trim: true
+    },
+    address: {
+        type: String,
+        required: [true, 'Address is required'],
+        trim: true
+    },
 
 }, {
     timestamps: true // This will add createdAt and updatedAt fields automatically

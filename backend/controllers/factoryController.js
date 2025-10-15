@@ -19,7 +19,6 @@ export const getFactories = async (req, res) => {
 
         const factories = await Factory.find(query);
         
-        // Get order item counts for each factory
         const factoriesWithOrders = await Promise.all(factories.map(async (factory) => {
             const orderCount = await OrderItem.countDocuments({ factory: factory._id });
             return {
@@ -33,7 +32,6 @@ export const getFactories = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
 
 export const getFactoryById = async (req, res) => {
     try {
@@ -51,23 +49,19 @@ export const createFactory = async (req, res) => {
     try {
         const { code, username, password, ...factoryData } = req.body;
         
-        // Check if code already exists
         const existingFactory = await Factory.findOne({ code });
         if (existingFactory) {
             return res.status(400).json({ message: 'Code already assigned. Please choose a different code.' });
         }
         
-        // Check if username already exists
         const existingUser = await User.findOne({ username });
         if (existingUser) {
             return res.status(400).json({ message: 'Username already exists. Please choose a different username.' });
         }
         
-        // Create factory
         const factory = new Factory({ code, ...factoryData });
         const createdFactory = await factory.save();
         
-        // Create user for factory
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.create({
             username,
@@ -89,7 +83,6 @@ export const updateFactory = async (req, res) => {
             return res.status(404).json({ message: 'Factory not found' });
         }
 
-        // Check if code is being updated and if it already exists
         if (req.body.code && req.body.code !== factory.code) {
             const existingFactory = await Factory.findOne({ code: req.body.code });
             if (existingFactory) {
@@ -109,7 +102,6 @@ export const updateFactory = async (req, res) => {
     }
 };
 
-
 export const deleteFactory = async (req, res) => {
     try {
         const factory = await Factory.findById(req.params.id);
@@ -117,7 +109,6 @@ export const deleteFactory = async (req, res) => {
             return res.status(404).json({ message: 'Factory not found' });
         }
 
-        // Delete associated user
         await User.deleteOne({ factory: factory._id, role: 'factory' });
         
         await factory.deleteOne();
@@ -149,14 +140,28 @@ export const updateOrderItemStatus = async (req, res) => {
     try {
         const { status } = req.body;
         const orderItem = await OrderItem.findById(req.params.itemId);
-        
+
         if (!orderItem) {
             return res.status(404).json({ message: 'Order item not found' });
         }
-        
+
+        if (status === 'Dispatched' && orderItem.status !== 'Completed') {
+            return res.status(400).json({ message: 'Only completed orders can be dispatched.' });
+        }
+
         orderItem.status = status;
+
+        if (status === 'Pending') {
+            orderItem.completedAt = null;
+            orderItem.dispatchedAt = null;
+        } else if (status === 'Completed') {
+            orderItem.completedAt = new Date();
+            orderItem.dispatchedAt = null;
+        } else if (status === 'Dispatched') {
+            orderItem.dispatchedAt = new Date();
+        }
+
         await orderItem.save();
-        
         res.json(orderItem);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -166,21 +171,62 @@ export const updateOrderItemStatus = async (req, res) => {
 export const bulkUpdateOrderItemStatus = async (req, res) => {
     try {
         const { itemIds, status } = req.body;
-        
+        const now = new Date();
+
         if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
             return res.status(400).json({ message: 'Item IDs are required' });
         }
-        
+
+        if (status === 'Dispatched') {
+            const itemsToUpdate = await OrderItem.find({ _id: { $in: itemIds } });
+            
+            const allAreCompleted = itemsToUpdate.every(item => item.status === 'Completed');
+            
+            if (!allAreCompleted) {
+                return res.status(400).json({ message: 'Error: All selected items must be in "Completed" status before they can be dispatched.' });
+            }
+        }
+
+        let update = { status };
+
+        if (status === 'Pending') {
+            update.completedAt = null;
+            update.dispatchedAt = null;
+        } else if (status === 'Completed') {
+            update.completedAt = now;
+            update.dispatchedAt = null;
+        } else if (status === 'Dispatched') {
+            update.dispatchedAt = now;
+        }
+
         await OrderItem.updateMany(
             { _id: { $in: itemIds } },
-            { status }
+            { $set: update }
         );
-        
+
         const updatedItems = await OrderItem.find({ _id: { $in: itemIds } })
             .populate('category')
             .populate('model');
-        
+
         res.json(updatedItems);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const getFactorySales = async (req, res) => {
+    try {
+        const factory = await Factory.findById(req.params.id);
+        if (!factory) {
+            return res.status(404).json({ message: 'Factory not found' });
+        }
+
+        const orderItems = await OrderItem.find({ factory: factory._id, status: 'Dispatched' })
+            .populate('category')
+            .populate('model')
+            .populate('factory')
+            .sort({ serialNumber: 1 });
+        res.json(orderItems);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

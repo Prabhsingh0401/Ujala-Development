@@ -18,7 +18,7 @@ import modelRoutes from './routes/modelRoutes.js';
 import pdfRoutes from './routes/pdfRoutes.js';
 import qrRoutes from './routes/qrRoutes.js';
 import authRoutes from './routes/authRoutes.js';
-import distributorRequestRoutes from './routes/distributorRequestRoutes.js'; // Import new distributor request routes
+import distributorRequestRoutes from './routes/distributorRequestRoutes.js'; 
 
 dotenv.config();
 

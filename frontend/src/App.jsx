@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import Dashboard from './components/pages/Dashboard'
 import Management from './components/pages/Management/Management'
 import FactoryManagement from './components/pages/FactoryManagement/FactoryManagement'
-import FactoryOrders from './components/pages/FactoryOrders';
+import FactoryOrders from './components/pages/factory/factoryorder';
 import FactorySales from './components/pages/FactorySales';
 import FactoryDashboard from './components/pages/FactoryDashboard';
 import DistributorDashboard from './components/pages/DistributorDashboard';
@@ -102,7 +102,7 @@ const Layout = () => {
 
 
 const FactoryProtectedRoute = ({ children }) => {
-  const { user, isFactoryAuthenticated, loading } = useContext(AuthContext);
+  const { isFactoryAuthenticated, loading } = useContext(AuthContext);
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">
@@ -118,7 +118,7 @@ const FactoryProtectedRoute = ({ children }) => {
 };
 
 const DistributorProtectedRoute = ({ children }) => {
-  const { user, isDistributorAuthenticated, loading } = useContext(AuthContext);
+  const { isDistributorAuthenticated, loading } = useContext(AuthContext);
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">
@@ -135,7 +135,7 @@ const DistributorProtectedRoute = ({ children }) => {
 
 
 const ProtectedRoute = ({ children }) => {
-  const { user, isAuthenticated, loading } = useContext(AuthContext);
+  const { isAuthenticated, loading } = useContext(AuthContext);
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">

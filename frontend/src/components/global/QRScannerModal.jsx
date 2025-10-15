@@ -76,10 +76,10 @@ function QRScannerModal({ isOpen, onClose, onProductUpdated }) {
         try {
             setLoading(true);
             await axios.put(`${API_URL}/api/qr/${productDetails.serialNumber}/status`, {
-                status: 'Completed'
+                status: 'Dispatched'
             });
-            toast.success('Product marked as completed!');
-            setProductDetails(prev => ({ ...prev, status: 'Completed' }));
+            toast.success('Product marked as dispatched!');
+            setProductDetails(prev => ({ ...prev, status: 'Dispatched' }));
             onProductUpdated?.();
         } catch (error) {
             toast.error('Failed to update status');
@@ -188,6 +188,8 @@ function QRScannerModal({ isOpen, onClose, onProductUpdated }) {
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                         productDetails.status === 'Completed' 
                                             ? 'bg-green-100 text-green-800' 
+                                            : productDetails.status === 'Dispatched'
+                                            ? 'bg-blue-100 text-blue-800'
                                             : 'bg-yellow-100 text-yellow-800'
                                     }`}>
                                         {productDetails.status}
@@ -195,7 +197,7 @@ function QRScannerModal({ isOpen, onClose, onProductUpdated }) {
                                 </div>
                             </div>
 
-                            {productDetails.status !== 'Completed' && (
+                            {productDetails.status !== 'Dispatched' && (
                                 <button
                                     onClick={updateProductStatus}
                                     disabled={loading}
@@ -206,7 +208,7 @@ function QRScannerModal({ isOpen, onClose, onProductUpdated }) {
                                     ) : (
                                         <CheckCircle className="h-5 w-5" />
                                     )}
-                                    Mark as Completed
+                                    Mark as Dispatched
                                 </button>
                             )}
                         </div>

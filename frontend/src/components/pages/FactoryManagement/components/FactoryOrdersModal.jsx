@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
-import { getFactoryOrders, updateOrderItemStatus, bulkUpdateOrderStatus, downloadMultiplePDFs } from '../services/factoryService';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { getFactoryOrders, bulkUpdateOrderStatus } from '../services/factoryService';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/factories`;
+const itemsPerPage = 10;
 
 export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFactories }) {
     const [factoryOrders, setFactoryOrders] = useState([]);
     const [orderSearchTerm, setOrderSearchTerm] = useState('');
     const [orderTypeFilter, setOrderTypeFilter] = useState('all');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [modalActiveTab, setModalActiveTab] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
     const [selectedItems, setSelectedItems] = useState([]);
-    const [selectAll, setSelectAll] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
 
     useEffect(() => {
@@ -24,91 +27,111 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
         }
     }, [isOpen, factory]);
 
+    const filteredOrders = useMemo(() => {
+        return factoryOrders.filter(item => {
+            const matchesSearch = orderSearchTerm === '' ||
+                item.serialNumber?.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
+                item.orderId?.toLowerCase().includes(orderSearchTerm.toLowerCase());
+            const matchesType = orderTypeFilter === 'all' || item.orderType === orderTypeFilter;
+            const matchesStatus = modalActiveTab === 'all' || item.status.toLowerCase() === modalActiveTab;
+
+            const itemDate = new Date(item.createdAt);
+            const start = startDate ? new Date(startDate) : null;
+            const end = endDate ? new Date(endDate) : null;
+
+            const matchesDate = (!start || itemDate >= start) && (!end || itemDate <= end);
+
+            return matchesSearch && matchesType && matchesStatus && matchesDate;
+        });
+    }, [factoryOrders, orderSearchTerm, orderTypeFilter, modalActiveTab, startDate, endDate]);
+
+    const groupedOrders = useMemo(() => {
+        return Object.entries(
+            filteredOrders.reduce((groups, item) => {
+                const boxKey = `${item.orderId}-Box-${item.boxNumber || 'N/A'}`;
+                if (!groups[boxKey]) {
+                    groups[boxKey] = {
+                        boxNumber: item.boxNumber,
+                        orderId: item.orderId,
+                        category: item.category,
+                        model: item.model,
+                        orderType: item.orderType,
+                        items: [],
+                    };
+                }
+                groups[boxKey].items.push(item);
+                return groups;
+            }, {})
+        );
+    }, [filteredOrders]);
+
+    const paginatedOrders = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return groupedOrders.slice(startIndex, startIndex + itemsPerPage);
+    }, [groupedOrders, currentPage]);
+
     const handleClose = () => {
         setFactoryOrders([]);
         setOrderSearchTerm('');
         setOrderTypeFilter('all');
         setCurrentPage(1);
         setSelectedItems([]);
-        setSelectAll(false);
+        setModalActiveTab('all');
         fetchFactories();
         onClose();
     };
+    
+    const handleSelectAll = () => {
+        const allFilteredIds = filteredOrders.map(item => item._id);
+        const allVisibleSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedItems.includes(id));
 
-    const handleItemSelect = (itemId) => {
-        setSelectedItems(prev =>
-            prev.includes(itemId)
-                ? prev.filter(id => id !== itemId)
-                : [...prev, itemId]
-        );
-    };
-
-    const handleSelectAll = (filteredItems) => {
-        if (selectAll) {
-            setSelectedItems([]);
+        if (allVisibleSelected) {
+            setSelectedItems(prev => prev.filter(id => !allFilteredIds.includes(id)));
         } else {
-            setSelectedItems(filteredItems.map(item => item._id));
+            setSelectedItems(prev => [...new Set([...prev, ...allFilteredIds])]);
         }
-        setSelectAll(!selectAll);
     };
 
     const handleDownloadMultiplePDFs = async () => {
-        const keysToDownload = [...new Set(factoryOrders
-            .filter(item => selectedItems.includes(item._id))
-            .map(item => `${item.orderId}-Box-${item.boxNumber}`)
-        )];
+        if (selectedItems.length === 0) {
+            toast.error('Please select items to download.');
+            return;
+        }
         setIsDownloading(true);
-        await downloadMultiplePDFs(keysToDownload);
-        setIsDownloading(false);
-    };
-
-    const handleToggleItemStatus = async (itemId, currentStatus) => {
-        const newStatus = await updateOrderItemStatus(factory._id, itemId, currentStatus);
-        if (newStatus) {
-            setFactoryOrders(prev =>
-                prev.map(item =>
-                    item._id === itemId ? { ...item, status: newStatus } : item
-                )
+        try {
+            const response = await axios.post(
+                `${import.meta.env.VITE_API_URL}/api/pdf/download-combined`,
+                { itemIds: selectedItems },
+                { responseType: 'blob' }
             );
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `combined-stickers-${Date.now()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            toast.success('Combined PDF downloaded successfully!');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Error downloading combined PDF.');
+        } finally {
+            setIsDownloading(false);
         }
     };
 
-    const handleBulkUpdateStatus = async (status) => {
-        await bulkUpdateOrderStatus(factory._id, selectedItems, status);
-        setFactoryOrders(prev =>
-            prev.map(item =>
-                selectedItems.includes(item._id) ? { ...item, status } : item
-            )
-        );
-        setSelectedItems([]);
-        setSelectAll(false);
+    const handleStatusChange = async (itemIds, status) => {
+        await bulkUpdateOrderStatus(factory._id, itemIds, status);
+        const orders = await getFactoryOrders(factory._id);
+        setFactoryOrders(orders);
     };
-
-    useEffect(() => {
-        if (factoryOrders.length > 0) {
-            const filteredOrders = factoryOrders.filter(item => {
-                const matchesSearch = orderSearchTerm === '' ||
-                    item.serialNumber?.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-                    item.orderId?.toLowerCase().includes(orderSearchTerm.toLowerCase());
-                const matchesType = orderTypeFilter === 'all' || item.orderType === orderTypeFilter;
-                return matchesSearch && matchesType;
-            });
-
-            if (filteredOrders.length > 0) {
-                const allSelected = filteredOrders.every(item => selectedItems.includes(item._id));
-                setSelectAll(allSelected && selectedItems.length > 0);
-            } else {
-                setSelectAll(false);
-            }
-        }
-    }, [selectedItems, factoryOrders, orderSearchTerm, orderTypeFilter]);
 
     if (!isOpen) return null;
 
     const downloadPDF = (boxKey, download = false) => {
         const url = `${import.meta.env.VITE_API_URL}/api/pdf/stickers/${boxKey}${download ? '?download=true' : ''}`;
         if (download) {
-            // For download, create a temporary link
             const link = document.createElement('a');
             link.href = url;
             link.download = `stickers-${boxKey}.pdf`;
@@ -116,10 +139,11 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
             link.click();
             document.body.removeChild(link);
         } else {
-            // For view, open in new tab
             window.open(url, '_blank');
         }
     };
+
+    const totalPages = Math.ceil(groupedOrders.length / itemsPerPage);
 
     return (
         <div className="fixed inset-0 bg-black/70 bg-opacity-20 flex items-center justify-center z-50 p-4">
@@ -129,16 +153,23 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                         <h3 className="text-lg font-semibold text-gray-900">
                             Orders for {factory?.name}
                         </h3>
-                        <button
-                            onClick={handleClose}
-                            className="text-gray-400 hover:text-gray-600"
-                        >
+                        <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
                             <X className="h-6 w-6" />
                         </button>
                     </div>
 
-                    {/* Search and Filter Section */}
                     <div className="space-y-4">
+                        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+                             {['all', 'pending', 'completed', 'dispatched'].map((tab) => {
+                                const count = tab === 'all' 
+                                    ? factoryOrders.length 
+                                    : factoryOrders.filter(order => order.status.toLowerCase() === tab).length;
+                                return (
+                                  <button key={tab} onClick={() => { setModalActiveTab(tab); setCurrentPage(1); }} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${modalActiveTab === tab ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'}`}>{tab.charAt(0).toUpperCase() + tab.slice(1)} ({count})</button>
+                                );
+                            })}
+                        </div>
+
                         <div className="flex flex-col sm:flex-row gap-4">
                             <div className="flex-1">
                                 <div className="relative">
@@ -164,27 +195,32 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                                     <option value="3_units">3 Units/Box</option>
                                 </select>
                             </div>
+                            <div className="sm:w-48">
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent bg-white"
+                                    title="Start Date"
+                                />
+                            </div>
+                            <div className="sm:w-48">
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent bg-white"
+                                    title="End Date"
+                                />
+                            </div>
                         </div>
 
-                        {/* Bulk Actions */}
                         {selectedItems.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                                 <span className="text-sm text-blue-700 font-medium">
                                     {selectedItems.length} item(s) selected
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => handleBulkUpdateStatus('Completed')}
-                                        className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                                    >
-                                        Mark Completed
-                                    </button>
-                                    <button
-                                        onClick={() => handleBulkUpdateStatus('Pending')}
-                                        className="px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors"
-                                    >
-                                        Mark Pending
-                                    </button>
                                     <button
                                         onClick={handleDownloadMultiplePDFs}
                                         disabled={isDownloading}
@@ -206,264 +242,137 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                    {(() => {
-                        // Filter orders based on search term and order type
-                        const filteredOrders = factoryOrders.filter(item => {
-                            const matchesSearch = orderSearchTerm === '' ||
-                                item.serialNumber?.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-                                item.orderId?.toLowerCase().includes(orderSearchTerm.toLowerCase());
-
-                            const matchesType = orderTypeFilter === 'all' || item.orderType === orderTypeFilter;
-
-                            return matchesSearch && matchesType;
-                        });
-
-
-
-                        // Group filtered orders
-                        const groupedOrders = Object.entries(
-                            filteredOrders.reduce((groups, item) => {
-                                const boxKey = `${item.orderId}-Box-${item.boxNumber || 'N/A'}`;
-                                if (!groups[boxKey]) {
-                                    groups[boxKey] = {
-                                        boxNumber: item.boxNumber,
-                                        orderId: item.orderId,
-                                        category: item.category,
-                                        model: item.model,
-                                        orderType: item.orderType,
-                                        items: []
-                                    };
-                                }
-                                groups[boxKey].items.push(item);
-                                return groups;
-                            }, {})
-                        );
-
-                        // Pagination
-                        const totalItems = groupedOrders.length;
-                        const startIndex = (currentPage - 1) * itemsPerPage;
-                        const paginatedOrders = groupedOrders.slice(startIndex, startIndex + itemsPerPage);
-
-                        return paginatedOrders.length > 0 ? (
-                            <div className="space-y-4">
-                                {/* Select All Checkbox */}
-                                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectAll}
-                                        onChange={() => handleSelectAll(filteredOrders)}
-                                        className="h-4 w-4 text-[#4d55f5] focus:ring-[#4d55f5] border-gray-300 rounded"
-                                    />
-                                    <label className="text-sm font-medium text-gray-700">
-                                        Select All Items ({filteredOrders.length}) - Status updates & PDF downloads
-                                    </label>
-                                </div>
-
-                                {/* Table Header */}
-                                <div className="bg-white border border-gray-200 rounded-lg overflow-auto">
-                                    <table className="w-full">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">Select</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Box</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created Date</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Date</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                            {paginatedOrders.map(([boxKey, boxData]) => {
-                                                const allItemsSelected = boxData.items.every(item => selectedItems.includes(item._id));
-                                                const allCompleted = boxData.items.every(item => item.status === 'Completed');
-
-                                                return (
-                                                    <tr key={boxKey} className="hover:bg-gray-50">
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={allItemsSelected}
-                                                                onChange={() => {
-                                                                    if (allItemsSelected) {
-                                                                        setSelectedItems(prev => prev.filter(id => !boxData.items.map(item => item._id).includes(id)));
-                                                                    } else {
-                                                                        setSelectedItems(prev => [...new Set([...prev, ...boxData.items.map(item => item._id)])]);
-                                                                    }
-                                                                }}
-                                                                className="h-4 w-4 text-[#4d55f5] focus:ring-[#4d55f5] border-gray-300 rounded"
-                                                            />
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-blue-600">
-                                                            {boxData.items[0].orderId}
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                            Box {boxData.boxNumber}
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                            <div className="space-y-1">
-                                                                {boxData.items.map((it, idx) => (
-                                                                    <div key={it._id || idx}>{it?.serialNumber}</div>
-                                                                ))}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                            {boxData.category?.name}
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                            {boxData.model?.name}
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                                                boxData.orderType === '2_units' ? 'bg-blue-100 text-blue-800' : boxData.orderType === '3_units' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
-                                                            }`}>
-                                                                {boxData.orderType === '2_units' ? '2 Units' : boxData.orderType === '3_units' ? '3 Units' : '1 Unit'}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                            {new Date(boxData.items[0].createdAt).toLocaleDateString('en-US', {
-                                                                year: 'numeric',
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })}
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <button
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        const newStatus = allCompleted ? 'Pending' : 'Completed';
-                                                                        await axios.patch(`${API_URL}/${factory._id}/orders/bulk-status`, {
-                                                                            itemIds: boxData.items.map(item => item._id),
-                                                                            status: newStatus
-                                                                        });
-
-                                                                        setFactoryOrders(prev =>
-                                                                            prev.map(item =>
-                                                                                boxData.items.find(boxItem => boxItem._id === item._id)
-                                                                                    ? { ...item, status: newStatus, updatedAt: new Date().toISOString() }
-                                                                                    : item
-                                                                            )
-                                                                        );
-                                                                        toast.success(`Box status updated to ${newStatus}`);
-                                                                    } catch (error) {
-                                                                        toast.error('Error updating box status');
-                                                                    }
-                                                                }}
-                                                                className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                                                                    allCompleted
-                                                                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                                                        : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                                                    }`}
-                                                            >
-                                                                {allCompleted ? 'Completed' : 'Pending'}
-                                                            </button>
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                                            {allCompleted ?
-                                                                new Date(boxData.items[0].updatedAt).toLocaleDateString('en-US', {
-                                                                    year: 'numeric',
-                                                                    month: 'short',
-                                                                    day: 'numeric',
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit'
-                                                                })
-                                                                : '-'
-                                                            }
-                                                        </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap">
-                                                            <div className="flex items-center space-x-1">
-                                                                <button
-                                                                    onClick={() => downloadPDF(boxKey, false)}
-                                                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                                                                >
-                                                                    View
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => downloadPDF(boxKey, true)}
-                                                                    className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                                                                >
-                                                                    Download
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                    {paginatedOrders.length > 0 ? (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
+                                <input
+                                    type="checkbox"
+                                    checked={filteredOrders.length > 0 && filteredOrders.every(item => selectedItems.includes(item._id))}
+                                    onChange={handleSelectAll}
+                                    className="h-4 w-4 text-[#4d55f5] focus:ring-[#4d55f5] border-gray-300 rounded"
+                                />
+                                <label className="text-sm font-medium text-gray-700">
+                                    Select All ({filteredOrders.length})
+                                </label>
                             </div>
-                        ) : (
-                            <div className="text-center py-8 text-gray-500">
-                                {factoryOrders.length === 0
-                                    ? 'No order items found for this factory'
-                                    : 'No orders match your search criteria'
-                                }
-                            </div>
-                        );
-                    })()}
+                            <div className="bg-white border border-gray-200 rounded-lg overflow-auto">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            {/* ## FIX: Restored all table headers ## */}
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">Select</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Box</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created Date</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dispatched</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {paginatedOrders.map(([boxKey, boxData]) => {
+                                            const allItemsSelected = boxData.items.every(item => selectedItems.includes(item._id));
+                                            
+                                            // ## FIX: Restored date calculation logic ##
+                                            const validCompletionDates = boxData.items.map(item => item.completedAt).filter(Boolean).map(date => new Date(date));
+                                            const latestCompletionDate = validCompletionDates.length ? new Date(Math.max.apply(null, validCompletionDates)) : null;
+
+                                            const validDispatchDates = boxData.items.map(item => item.dispatchedAt).filter(Boolean).map(date => new Date(date));
+                                            const latestDispatchDate = validDispatchDates.length ? new Date(Math.max.apply(null, validDispatchDates)) : null;
+
+                                            return (
+                                                <tr key={boxKey} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={allItemsSelected}
+                                                            onChange={() => {
+                                                                const itemIds = boxData.items.map(item => item._id);
+                                                                if (allItemsSelected) {
+                                                                    setSelectedItems(prev => prev.filter(id => !itemIds.includes(id)));
+                                                                } else {
+                                                                    setSelectedItems(prev => [...new Set([...prev, ...itemIds])]);
+                                                                }
+                                                            }}
+                                                            className="h-4 w-4 text-[#4d55f5] focus:ring-[#4d55f5] border-gray-300 rounded"
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-blue-600">{boxData.orderId}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Box {boxData.boxNumber}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                        <div className="space-y-1">
+                                                            {boxData.items.map((it) => (<div key={it._id}>{it?.serialNumber}</div>))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{boxData.category?.name}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{boxData.model?.name}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${boxData.orderType === '2_units' ? 'bg-blue-100 text-blue-800' : boxData.orderType === '3_units' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
+                                                            {boxData.orderType === '2_units' ? '2 Units' : boxData.orderType === '3_units' ? '3 Units' : '1 Unit'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                        {new Date(boxData.items[0].createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                                    </td>
+                                                    {/* ## FIX: Restored status dropdown ## */}
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        <select
+                                                            value={boxData.items[0].status}
+                                                            onChange={(e) => handleStatusChange(boxData.items.map(item => item._id), e.target.value)}
+                                                            className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                                        >
+                                                            <option value="Pending">Pending</option>
+                                                            <option value="Completed">Completed</option>
+                                                            <option value="Dispatched" disabled={!boxData.items.every(item => item.status === 'Completed')}>Dispatched</option>
+                                                        </select>
+                                                    </td>
+                                                    {/* ## FIX: Restored date columns ## */}
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{latestCompletionDate ? new Date(latestCompletionDate).toLocaleDateString('en-GB') : '-'}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{latestDispatchDate ? new Date(latestDispatchDate).toLocaleDateString('en-GB') : '-'}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        <div className="flex items-center space-x-1">
+                                                            <button onClick={() => downloadPDF(`${boxData.orderId}-Box-${boxData.boxNumber}`, false)} className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">View</button>
+                                                            <button onClick={() => downloadPDF(`${boxData.orderId}-Box-${boxData.boxNumber}`, true)} className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors">Download</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                                </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-500">
+                            {factoryOrders.length === 0 ? 'No order items found for this factory' : 'No orders match your search criteria'}
+                        </div>
+                    )}
                 </div>
 
-                {/* Fixed Footer with Pagination */}
                 <div className="border-t border-gray-200 px-4 sm:px-6 py-3 bg-gray-50">
-                    {(() => {
-                        const filteredOrders = factoryOrders.filter(item => {
-                            const matchesSearch = orderSearchTerm === '' ||
-                                item.serialNumber?.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-                                item.orderId?.toLowerCase().includes(orderSearchTerm.toLowerCase());
-                            const matchesType = orderTypeFilter === 'all' || item.orderType === orderTypeFilter;
-                            return matchesSearch && matchesType;
-                        });
-
-                        const groupedOrders = Object.entries(
-                            filteredOrders.reduce((groups, item) => {
-                                const boxKey = `${item.orderId}-Box-${item.boxNumber || 'N/A'}`;
-                                if (!groups[boxKey]) groups[boxKey] = { items: [] };
-                                groups[boxKey].items.push(item);
-                                return groups;
-                            }, {})
-                        );
-
-                        const totalItems = groupedOrders.length;
-                        const totalPages = Math.ceil(totalItems / itemsPerPage);
-                        const startItem = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
-                        const endItem = Math.min(currentPage * itemsPerPage, totalItems);
-
-                        return (
-                            <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-700">
-                                    Showing {startItem} to {endItem} of {totalItems} orders
-                                </div>
-                                {totalPages > 1 && (
-                                    <div className="flex items-center space-x-2">
-                                        <button
-                                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                                            disabled={currentPage === 1}
-                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-                                        >
-                                            Previous
-                                        </button>
-                                        <span className="text-sm text-gray-700">
-                                            Page {currentPage} of {totalPages}
-                                        </span>
-                                        <button
-                                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                                            disabled={currentPage === totalPages}
-                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
+                     <div className="flex items-center justify-between">
+                         <div className="text-sm text-gray-700">
+                             Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, groupedOrders.length)} of {groupedOrders.length} boxes
+                         </div>
+                         {totalPages > 1 && (
+                             <div className="flex items-center space-x-2">
+                                 <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100">
+                                     Previous
+                                 </button>
+                                 <span className="text-sm text-gray-700">
+                                     Page {currentPage} of {totalPages}
+                                 </span>
+                                 <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100">
+                                     Next
+                                 </button>
+                             </div>
+                         )}
+                     </div>
                 </div>
             </div>
         </div>

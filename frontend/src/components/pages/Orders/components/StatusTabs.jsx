@@ -1,6 +1,5 @@
 export function StatusTabs({ status, onStatusChange }) {
     const tabs = [
-        { key: 'all', label: 'All' },
         { key: 'Pending', label: 'Pending' },
         { key: 'Completed', label: 'Completed' },
     ];

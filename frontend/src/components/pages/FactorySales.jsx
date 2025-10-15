@@ -10,7 +10,7 @@ const API_URL = `${import.meta.env.VITE_API_URL}/api/factories`;
 
 function FactorySales() {
     const [searchTerm, setSearchTerm] = useState('');
-    const [completedOrders, setCompletedOrders] = useState([]);
+    const [dispatchedOrders, setDispatchedOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [showScanner, setShowScanner] = useState(false);
@@ -19,17 +19,15 @@ function FactorySales() {
 
     useEffect(() => {
         if (user && user.factory) {
-            fetchCompletedOrders();
+            fetchDispatchedOrders();
         }
     }, [user]);
 
-    const fetchCompletedOrders = async () => {
+    const fetchDispatchedOrders = async () => {
         try {
             setLoading(true);
-            const { data } = await axios.get(`${API_URL}/${user.factory._id}/orders`);
-            // Filter only completed orders
-            const completed = data.filter(order => order.status === 'Completed');
-            setCompletedOrders(completed);
+            const { data } = await axios.get(`${API_URL}/${user.factory._id}/sales`);
+            setDispatchedOrders(data);
         } catch (error) {
             toast.error('Error fetching sales data');
             console.error('Error:', error);
@@ -37,6 +35,7 @@ function FactorySales() {
             setLoading(false);
         }
     };
+
 
     const downloadPDF = (boxKey, download = false) => {
         const url = `${import.meta.env.VITE_API_URL}/api/pdf/stickers/${boxKey}${download ? '?download=true' : ''}`;
@@ -53,7 +52,7 @@ function FactorySales() {
     };
 
     // Filter orders based on search term
-    const filteredOrders = completedOrders.filter(order => {
+    const filteredOrders = dispatchedOrders.filter(order => {
         const matchesSearch = searchTerm === '' || 
             order.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             order.orderId?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -71,7 +70,8 @@ function FactorySales() {
                     category: item.category,
                     model: item.model,
                     orderType: item.orderType,
-                    completedDate: item.updatedAt,
+                    dispatchedDate: item.dispatchedAt,
+                    completedDate: item.completedAt,
                     items: []
                 };
             }
@@ -108,7 +108,8 @@ function FactorySales() {
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed Date</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Date</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dispatched Date</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
@@ -142,7 +143,10 @@ function FactorySales() {
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                        {new Date(boxData.completedDate).toLocaleDateString()}
+                                        {boxData.completedDate ? new Date(boxData.completedDate).toLocaleDateString() : '-'}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                        {boxData.dispatchedDate ? new Date(boxData.dispatchedDate).toLocaleDateString() : '-'}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap">
                                         <div className="flex items-center space-x-1">
@@ -198,8 +202,8 @@ function FactorySales() {
             </div>
         ) : (
             <div className="text-center py-12 text-gray-500">
-                {completedOrders.length === 0 
-                    ? 'No completed orders found'
+                {dispatchedOrders.length === 0 
+                    ? 'No dispatched orders found'
                     : 'No sales match your search criteria'
                 }
             </div>
@@ -217,16 +221,16 @@ function FactorySales() {
                 <QRScannerModal 
                     isOpen={showScanner} 
                     onClose={() => setShowScanner(false)}
-                    onProductUpdated={fetchCompletedOrders}
+                    onProductUpdated={fetchDispatchedOrders}
                 />
 
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                     <div className="p-4 sm:p-6 border-b border-gray-200">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                             <div>
-                                <h2 className="text-lg font-semibold text-gray-900">Completed Orders</h2>
+                                <h2 className="text-lg font-semibold text-gray-900">Dispatched Orders</h2>
                                 <p className="text-sm text-gray-600">
-                                    Total {completedOrders.length} completed items
+                                    Total {dispatchedOrders.length} dispatched items
                                 </p>
                             </div>
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">

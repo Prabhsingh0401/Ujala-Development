@@ -21,13 +21,13 @@ const userTypes = [
         icon: Building,
         bg: '#EF4444'
     },
-    {
-        id: 'distributor',
-        title: 'Distributor',
-        description: 'Distributor operations',
-        icon: Building, // Using Building icon for now, can change later if needed
-        bg: '#3B82F6' // A distinct color for distributor
-    }
+    // {
+    //     id: 'distributor',
+    //     title: 'Distributor',
+    //     description: 'Distributor operations',
+    //     icon: Building, // Using Building icon for now, can change later if needed
+    //     bg: '#3B82F6' // A distinct color for distributor
+    // }
 ];
 
 export default function Login() {
