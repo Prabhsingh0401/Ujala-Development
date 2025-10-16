@@ -47,6 +47,18 @@ export const deleteFactory = async (factoryId) => {
     }
 };
 
+export const deleteMultipleFactories = async (factoryIds) => {
+    if (window.confirm(`Are you sure you want to delete ${factoryIds.length} selected factories?`)) {
+        try {
+            await axios.delete(API_URL, { data: { factoryIds } });
+            toast.success('Selected factories deleted successfully');
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Error deleting selected factories');
+            throw error;
+        }
+    }
+};
+
 export const getFactoryOrders = async (factoryId) => {
     try {
         const { data } = await axios.get(`${API_URL}/${factoryId}/orders`);

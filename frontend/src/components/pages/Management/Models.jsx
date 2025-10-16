@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus, Filter, Trash2 } from 'lucide-react';
 import { useModels } from './hooks/useModels';
 import { useCategories } from './hooks/useCategories';
 import ModelModal from './components/ModelModal';
@@ -7,12 +7,13 @@ import ModelsTable from './components/ModelsTable';
 
 const Models = () => {
     const { categories } = useCategories();
-    const { models, loading, searchTerm, setSearchTerm, categoryFilter, setCategoryFilter, addModel, updateModel, deleteModel, updateStatus } = useModels(categories);
+    const { models, loading, searchTerm, setSearchTerm, categoryFilter, setCategoryFilter, addModel, updateModel, deleteModel, updateStatus, deleteMultipleModels } = useModels(categories);
     const [showModelModal, setShowModelModal] = useState(false);
     const [selectedModel, setSelectedModel] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [showModelDetailsModal, setShowModelDetailsModal] = useState(false);
     const [selectedModelForView, setSelectedModelForView] = useState(null);
+    const [selectedModels, setSelectedModels] = useState([]);
 
     const handleAddClick = () => {
         setIsEditing(false);
@@ -47,6 +48,26 @@ const Models = () => {
         setShowModelDetailsModal(true);
     };
 
+    const handleSelect = (id) => {
+        setSelectedModels(prev =>
+            prev.includes(id) ? prev.filter(modelId => modelId !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedModels(models.map(m => m._id));
+        } else {
+            setSelectedModels([]);
+        }
+    };
+
+    const handleDeleteSelected = () => {
+        deleteMultipleModels(selectedModels).then(() => {
+            setSelectedModels([]);
+        });
+    };
+
     return (
         <div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 mb-4">
@@ -75,13 +96,23 @@ const Models = () => {
                             ))}
                         </select>
                     </div>
-                    <button
-                        onClick={handleAddClick}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Model
-                    </button>
+                    {selectedModels.length > 0 ? (
+                        <button
+                            onClick={handleDeleteSelected}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete ({selectedModels.length})
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleAddClick}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Model
+                        </button>
+                    )}
                 </div>
             </div>
             {loading ? (
@@ -94,6 +125,9 @@ const Models = () => {
                     onStatusChange={updateStatus}
                     onShowDetails={handleShowDetails}
                     categories={categories}
+                    selectedModels={selectedModels}
+                    onSelect={handleSelect}
+                    onSelectAll={handleSelectAll}
                 />
             )}
             <ModelModal

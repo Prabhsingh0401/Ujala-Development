@@ -6,6 +6,9 @@ export function OrderTable({
   onView,
   onEdit,
   onDelete,
+  selectedOrders,
+  onSelect,
+  onSelectAll
 }) {
   const getOrderTypeDisplay = (orderType) => {
     const types = {
@@ -27,7 +30,14 @@ export function OrderTable({
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
-
+            <th className="px-6 py-3 text-left">
+                <input
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    onChange={onSelectAll}
+                    checked={orders.length > 0 && selectedOrders.length === orders.length}
+                />
+            </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ORDER ID</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SERIAL NUMBER</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FACTORY</th>
@@ -44,7 +54,14 @@ export function OrderTable({
           items={orders}
           renderItem={(order) => (
             <>
-
+              <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                      type="checkbox"
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      onChange={() => onSelect(order._id)}
+                      checked={selectedOrders.includes(order._id)}
+                  />
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.orderId}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{order.serialNumber}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.factory?.name}</td>

@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Trash2 } from 'lucide-react';
 import { useFactories } from './hooks/useFactories';
 import FactoryList from './components/FactoryList';
 import FactoryModal from './components/FactoryModal';
 import FactoryOrdersModal from './components/FactoryOrdersModal';
 
 export default function FactoryManagement() {
-    const { factories, loading, searchTerm, setSearchTerm, addFactory, updateFactory, deleteFactory, fetchFactories } = useFactories();
+    const { factories, loading, searchTerm, setSearchTerm, addFactory, updateFactory, deleteFactory, fetchFactories, deleteMultipleFactories } = useFactories();
     const [showFactoryModal, setShowFactoryModal] = useState(false);
     const [showOrdersModal, setShowOrdersModal] = useState(false);
     const [selectedFactory, setSelectedFactory] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
+    const [selectedFactories, setSelectedFactories] = useState([]);
 
     const handleAddClick = () => {
         setIsEditing(false);
@@ -47,6 +48,26 @@ export default function FactoryManagement() {
         setShowOrdersModal(true);
     };
 
+    const handleSelect = (id) => {
+        setSelectedFactories(prev =>
+            prev.includes(id) ? prev.filter(factoryId => factoryId !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedFactories(factories.map(f => f._id));
+        } else {
+            setSelectedFactories([]);
+        }
+    };
+
+    const handleDeleteSelected = () => {
+        deleteMultipleFactories(selectedFactories).then(() => {
+            setSelectedFactories([]);
+        });
+    };
+
     return (
         <div className="p-4">
             <div className="p-6">
@@ -74,13 +95,23 @@ export default function FactoryManagement() {
                                         className="w-full sm:w-auto pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
                                     />
                                 </div>
-                                <button
-                                    onClick={handleAddClick}
-                                    className="flex items-center justify-center space-x-2 bg-[#4d55f5] text-white px-4 py-2 rounded-lg hover:bg-[#3d45e5] transition-colors"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    <span>Add Factory</span>
-                                </button>
+                                {selectedFactories.length > 0 ? (
+                                    <button
+                                        onClick={handleDeleteSelected}
+                                        className="flex items-center justify-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span>Delete ({selectedFactories.length})</span>
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleAddClick}
+                                        className="flex items-center justify-center space-x-2 bg-[#4d55f5] text-white px-4 py-2 rounded-lg hover:bg-[#3d45e5] transition-colors"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        <span>Add Factory</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -91,6 +122,9 @@ export default function FactoryManagement() {
                         onEdit={handleEditClick}
                         onDelete={deleteFactory}
                         onViewOrders={handleViewOrders}
+                        selectedFactories={selectedFactories}
+                        onSelect={handleSelect}
+                        onSelectAll={handleSelectAll}
                     />
                 </div>
             </div>

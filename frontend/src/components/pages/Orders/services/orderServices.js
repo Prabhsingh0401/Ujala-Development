@@ -10,6 +10,7 @@ export const orderService = {
   createOrder: (orderData) => axios.post(API_URL, orderData),
   updateOrder: (id, orderData) => axios.patch(`${API_URL}/${id}`, orderData),
   deleteOrder: (id) => axios.delete(`${API_URL}/${id}`),
+  deleteMultipleOrders: (ids) => axios.delete(API_URL, { data: { ids } }),
   updateOrderStatus: (id, status) => axios.patch(`${API_URL}/${id}/status`, { status }),
   markOrderAsDispatched: (id) => axios.put(`${API_URL}/${id}/dispatch`),
   bulkUpdateOrderStatus: (factoryId, itemIds, status) => axios.patch(`${import.meta.env.VITE_API_URL}/api/factories/${factoryId}/orders/bulk-status`, { itemIds, status }),

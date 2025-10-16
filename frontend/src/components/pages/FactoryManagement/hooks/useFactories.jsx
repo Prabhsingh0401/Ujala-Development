@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getFactories, addFactory, updateFactory, deleteFactory } from '../services/factoryService';
+import { getFactories, addFactory, updateFactory, deleteFactory, deleteMultipleFactories } from '../services/factoryService';
 
 export const useFactories = () => {
     const [factories, setFactories] = useState([]);
@@ -55,6 +55,15 @@ export const useFactories = () => {
         }
     };
 
+    const handleDeleteMultipleFactories = async (factoryIds) => {
+        try {
+            await deleteMultipleFactories(factoryIds);
+            fetchFactories();
+        } catch (error) {
+            // Error is already handled in the service
+        }
+    };
+
     return {
         factories,
         loading,
@@ -63,6 +72,7 @@ export const useFactories = () => {
         addFactory: handleAddFactory,
         updateFactory: handleUpdateFactory,
         deleteFactory: handleDeleteFactory,
+        deleteMultipleFactories: handleDeleteMultipleFactories,
         fetchFactories
     };
 };

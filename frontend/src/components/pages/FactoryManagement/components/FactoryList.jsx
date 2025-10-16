@@ -2,7 +2,7 @@ import React from 'react';
 import { FilePenLine, Trash2, Box } from 'lucide-react';
 import ListComponent from '../../../global/ListComponent';
 
-export default function FactoryList({ factories, onEdit, onDelete, onViewOrders, loading }) {
+export default function FactoryList({ factories, onEdit, onDelete, onViewOrders, loading, selectedFactories, onSelect, onSelectAll }) {
     if (loading) {
         return (
             <div className="text-center py-12">
@@ -18,6 +18,14 @@ export default function FactoryList({ factories, onEdit, onDelete, onViewOrders,
                 <table className="w-full">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th className="px-6 py-3 text-left">
+                                <input
+                                    type="checkbox"
+                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    onChange={onSelectAll}
+                                    checked={factories.length > 0 && selectedFactories.length === factories.length}
+                                />
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Factory Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
@@ -31,6 +39,14 @@ export default function FactoryList({ factories, onEdit, onDelete, onViewOrders,
                         items={factories}
                         renderItem={(factory) => (
                             <>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        onChange={() => onSelect(factory._id)}
+                                        checked={selectedFactories.includes(factory._id)}
+                                    />
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{factory.code}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{factory.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{factory.location}</td>

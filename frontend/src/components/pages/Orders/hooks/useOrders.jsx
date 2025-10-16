@@ -109,6 +109,23 @@ export const useOrders = () => {
     }
   };
 
+  const deleteMultipleOrders = async (ids) => {
+    if (!window.confirm(`Are you sure you want to delete ${ids.length} selected orders?`)) return false;
+
+    try {
+      await orderService.deleteMultipleOrders(ids);
+      const updatedOrders = orders.filter(order => !ids.includes(order._id));
+      setOrders(updatedOrders);
+      updateStatusTabCounts(updatedOrders);
+      toast.success('Selected orders deleted successfully');
+      return true;
+    } catch (error) {
+      toast.error('Error deleting selected orders');
+      console.error('Error deleting selected orders:', error);
+      return false;
+    }
+  };
+
   const updateOrderStatus = async (id, status) => {
     try {
       const { data } = await orderService.updateOrderStatus(id, status);

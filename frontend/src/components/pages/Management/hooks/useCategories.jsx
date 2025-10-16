@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCategories, addCategory, updateCategory, deleteCategory, updateCategoryStatus } from '../services/managementService';
+import { getCategories, addCategory, updateCategory, deleteCategory, updateCategoryStatus, deleteMultipleCategories } from '../services/managementService';
 
 export const useCategories = () => {
     const [categories, setCategories] = useState([]);
@@ -51,6 +51,15 @@ export const useCategories = () => {
         }
     };
 
+    const handleDeleteMultipleCategories = async (categoryIds) => {
+        try {
+            await deleteMultipleCategories(categoryIds);
+            fetchCategories();
+        } catch (error) {
+            // Error is already handled in the service
+        }
+    };
+
     const handleUpdateCategoryStatus = async (categoryId, status) => {
         try {
             await updateCategoryStatus(categoryId, status);
@@ -73,6 +82,7 @@ export const useCategories = () => {
         addCategory: handleAddCategory,
         updateCategory: handleUpdateCategory,
         deleteCategory: handleDeleteCategory,
+        deleteMultipleCategories: handleDeleteMultipleCategories,
         updateStatus: handleUpdateCategoryStatus,
         fetchCategories
     };

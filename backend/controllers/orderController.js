@@ -218,6 +218,29 @@ export const deleteOrder = async (req, res) => {
     }
 }
 
+export const deleteMultipleOrders = async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: 'Order IDs are required.' });
+        }
+
+        const orders = await Order.find({ _id: { $in: ids } });
+        if (orders.length === 0) {
+            return res.status(404).json({ message: 'No orders found with the provided IDs.' });
+        }
+
+        const orderIds = orders.map(order => order.orderId);
+        await OrderItem.deleteMany({ orderId: { $in: orderIds } });
+        await Order.deleteMany({ _id: { $in: ids } });
+
+        res.json({ message: 'Orders deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+
 export const markOrderAsDispatched = async (req, res) => {
     const { id } = req.params;
 

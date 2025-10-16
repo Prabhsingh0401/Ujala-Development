@@ -1,15 +1,5 @@
 import express from 'express';
-import {
-    getFactories,
-    getFactoryById,
-    createFactory,
-    updateFactory,
-    deleteFactory,
-    getFactoryOrders,
-    updateOrderItemStatus,
-    bulkUpdateOrderItemStatus,
-    getFactorySales
-} from '../controllers/factoryController.js';
+import { getFactories, getFactoryById, createFactory, updateFactory, deleteFactory, getFactoryOrders, updateOrderItemStatus, bulkUpdateOrderItemStatus, getFactorySales, deleteMultipleFactories } from '../controllers/factoryController.js';
 
 const router = express.Router();
 
@@ -27,6 +17,9 @@ router.put('/:id', updateFactory);
 
 // @route   DELETE /api/factories/:id
 router.delete('/:id', deleteFactory);
+
+// @route   DELETE /api/factories/
+router.delete('/', deleteMultipleFactories);
 
 // @route   GET /api/factories/:id/orders
 router.get('/:id/orders', getFactoryOrders);

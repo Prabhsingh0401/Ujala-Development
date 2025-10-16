@@ -6,7 +6,9 @@ export function OrderCard({
   onView,
   onEdit,
   onDelete,
-  onStatusChange
+  onStatusChange,
+  selectedOrders,
+  onSelect
 }) {
   const getTotalUnits = (order) => {
     return order.totalUnits || 
@@ -23,7 +25,12 @@ export function OrderCard({
             <>
               <div className="flex justify-between items-start">
                 <div className="flex items-center space-x-3">
-
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    onChange={() => onSelect(order._id)}
+                    checked={selectedOrders.includes(order._id)}
+                  />
                   <h3 className="font-medium text-gray-900">{order.model?.name}</h3>
                 </div>
                 <div className="flex items-center space-x-2">

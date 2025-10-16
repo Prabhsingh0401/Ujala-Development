@@ -49,6 +49,18 @@ export const deleteCategory = async (categoryId) => {
     }
 };
 
+export const deleteMultipleCategories = async (categoryIds) => {
+    if (window.confirm(`Are you sure you want to delete ${categoryIds.length} selected categories?`)) {
+        try {
+            await axios.delete(CATEGORIES_API_URL, { data: { categoryIds } });
+            toast.success('Selected categories deleted successfully');
+        } catch (error) {
+            toast.error('Error deleting selected categories');
+            throw error;
+        }
+    }
+};
+
 export const updateCategoryStatus = async (categoryId, status) => {
     try {
         await axios.patch(`${CATEGORIES_API_URL}/${categoryId}/status`, { status });
@@ -99,6 +111,18 @@ export const deleteModel = async (modelId) => {
             toast.success('Model deleted successfully');
         } catch (error) {
             toast.error('Error deleting model');
+            throw error;
+        }
+    }
+};
+
+export const deleteMultipleModels = async (modelIds) => {
+    if (window.confirm(`Are you sure you want to delete ${modelIds.length} selected models?`)) {
+        try {
+            await axios.delete(MODELS_API_URL, { data: { modelIds } });
+            toast.success('Selected models deleted successfully');
+        } catch (error) {
+            toast.error('Error deleting selected models');
             throw error;
         }
     }

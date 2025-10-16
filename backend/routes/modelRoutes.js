@@ -1,19 +1,12 @@
 import express from 'express';
-import {
-  getModels,
-  getModelById,
-  getModelsByCategory,
-  createModel,
-  updateModel,
-  deleteModel,
-  updateModelStatus
-} from '../controllers/modelController.js';
+import { getModels, getModelById, getModelsByCategory, createModel, updateModel, deleteModel, updateModelStatus, deleteMultipleModels } from '../controllers/modelController.js';
 
 const router = express.Router();
 
 router.route('/')
   .get(getModels)
-  .post(createModel);
+  .post(createModel)
+  .delete(deleteMultipleModels);
 
 router.route('/category/:categoryId')
   .get(getModelsByCategory);

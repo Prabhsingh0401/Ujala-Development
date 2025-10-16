@@ -68,6 +68,24 @@ export const deleteCategory = asyncHandler(async (req, res) => {
   }
 });
 
+export const deleteMultipleCategories = asyncHandler(async (req, res) => {
+  const { categoryIds } = req.body;
+
+  if (!categoryIds || categoryIds.length === 0) {
+    res.status(400).json({ message: 'No category IDs provided' });
+    return;
+  }
+
+  const result = await Category.deleteMany({ _id: { $in: categoryIds } });
+
+  if (result.deletedCount > 0) {
+    res.json({ message: `${result.deletedCount} categories removed` });
+  } else {
+    res.status(404).json({ message: 'No categories found with the provided IDs' });
+  }
+});
+
+
 export const updateCategoryStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   const category = await Category.findById(req.params.id);

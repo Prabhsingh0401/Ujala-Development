@@ -88,6 +88,24 @@ export const deleteModel = asyncHandler(async (req, res) => {
   }
 });
 
+export const deleteMultipleModels = asyncHandler(async (req, res) => {
+  const { modelIds } = req.body;
+
+  if (!modelIds || modelIds.length === 0) {
+    res.status(400).json({ message: 'No model IDs provided' });
+    return;
+  }
+
+  const result = await Model.deleteMany({ _id: { $in: modelIds } });
+
+  if (result.deletedCount > 0) {
+    res.json({ message: `${result.deletedCount} models removed` });
+  } else {
+    res.status(404).json({ message: 'No models found with the provided IDs' });
+  }
+});
+
+
 export const updateModelStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   const model = await Model.findById(req.params.id).populate('category', 'name');

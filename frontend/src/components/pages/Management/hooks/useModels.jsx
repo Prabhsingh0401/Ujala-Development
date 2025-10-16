@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getModels, addModel, updateModel, deleteModel, updateModelStatus } from '../services/managementService';
+import { getModels, addModel, updateModel, deleteModel, updateModelStatus, deleteMultipleModels } from '../services/managementService';
 
 export const useModels = (categories) => {
     const [models, setModels] = useState([]);
@@ -52,6 +52,15 @@ export const useModels = (categories) => {
         }
     };
 
+    const handleDeleteMultipleModels = async (modelIds) => {
+        try {
+            await deleteMultipleModels(modelIds);
+            fetchModels();
+        } catch (error) {
+            // Error is already handled in the service
+        }
+    };
+
     const handleUpdateModelStatus = async (modelId, status) => {
         try {
             await updateModelStatus(modelId, status);
@@ -81,6 +90,7 @@ export const useModels = (categories) => {
         addModel: handleAddModel,
         updateModel: handleUpdateModel,
         deleteModel: handleDeleteModel,
+        deleteMultipleModels: handleDeleteMultipleModels,
         updateStatus: handleUpdateModelStatus,
         fetchModels
     };

@@ -118,6 +118,29 @@ export const deleteFactory = async (req, res) => {
     }
 };
 
+export const deleteMultipleFactories = async (req, res) => {
+    try {
+        const { factoryIds } = req.body;
+
+        if (!factoryIds || factoryIds.length === 0) {
+            return res.status(400).json({ message: 'No factory IDs provided' });
+        }
+
+        await User.deleteMany({ factory: { $in: factoryIds }, role: 'factory' });
+        
+        const result = await Factory.deleteMany({ _id: { $in: factoryIds } });
+
+        if (result.deletedCount > 0) {
+            res.json({ message: `${result.deletedCount} factories removed` });
+        } else {
+            res.status(404).json({ message: 'No factories found with the provided IDs' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
 export const getFactoryOrders = async (req, res) => {
     try {
         const factory = await Factory.findById(req.params.id);

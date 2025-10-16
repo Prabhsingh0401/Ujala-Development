@@ -1,4 +1,3 @@
-// src/pages/Orders/Orders.jsx
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import ErrorBoundary from '../../global/ErrorBoundary';
@@ -12,6 +11,7 @@ import { OrderModal } from './components/orderModal';
 import { OrderDetailsModal } from './components/orderDetailsModal';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { orderService } from './services/orderServices';
+import { Trash2 } from 'lucide-react';
 
 function Orders() {
 
@@ -24,6 +24,7 @@ function Orders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10); // Default to 10 items per page
+  const [selectedOrders, setSelectedOrders] = useState([]);
 
   const [isEdit, setIsEdit] = useState(false);
   const [factoryStats, setFactoryStats] = useState({});
@@ -39,6 +40,7 @@ function Orders() {
     addOrder,
     updateOrder,
     deleteOrder,
+    deleteMultipleOrders,
     updateOrderStatus,
     markOrderAsDispatched,
     transferToProducts,
@@ -138,10 +140,6 @@ function Orders() {
     }
   };
 
-
-
-
-
   const handleDispatchOrder = async (id) => {
     const success = await markOrderAsDispatched(id);
     if (success) {
@@ -173,6 +171,26 @@ function Orders() {
     setOrderItems([]);
   };
 
+  const handleSelect = (id) => {
+    setSelectedOrders(prev =>
+        prev.includes(id) ? prev.filter(orderId => orderId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (e) => {
+      if (e.target.checked) {
+          setSelectedOrders(currentItems.map(o => o._id));
+      } else {
+          setSelectedOrders([]);
+      }
+  };
+
+  const handleDeleteSelected = () => {
+      deleteMultipleOrders(selectedOrders).then(() => {
+          setSelectedOrders([]);
+      });
+  };
+
   if (loading) {
     return (
       <div className="p-4 sm:p-6">
@@ -196,18 +214,28 @@ function Orders() {
             </div>
 
             <div className="space-y-3 sm:space-y-0 flex flex-col sm:flex-row items-stretch sm:items-center sm:space-x-4">
-              <OrderFilters
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                factoryFilter={factoryFilter}
-                onFactoryFilterChange={setFactoryFilter}
-                orderTypeFilter={orderTypeFilter}
-                onOrderTypeFilterChange={setOrderTypeFilter}
-                dispatchedFilter={dispatchedFilter}
-                onDispatchedFilterChange={setDispatchedFilter}
-                factories={factories}
-                onAddOrder={handleAddOrderClick}
-              />
+              {selectedOrders.length > 0 ? (
+                <button
+                  onClick={handleDeleteSelected}
+                  className="flex items-center justify-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Delete ({selectedOrders.length})</span>
+                </button>
+              ) : (
+                <OrderFilters
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  factoryFilter={factoryFilter}
+                  onFactoryFilterChange={setFactoryFilter}
+                  orderTypeFilter={orderTypeFilter}
+                  onOrderTypeFilterChange={setOrderTypeFilter}
+                  dispatchedFilter={dispatchedFilter}
+                  onDispatchedFilterChange={setDispatchedFilter}
+                  factories={factories}
+                  onAddOrder={handleAddOrderClick}
+                />
+              )}
 
             </div>
           </div>
@@ -223,6 +251,9 @@ function Orders() {
                 onEdit={handleEditOrder}
                 onDelete={deleteOrder}
                 onStatusChange={updateOrderStatus}
+                selectedOrders={selectedOrders}
+                onSelect={handleSelect}
+                onSelectAll={handleSelectAll}
               />
               <OrderCard
                 orders={currentItems}
@@ -230,6 +261,8 @@ function Orders() {
                 onEdit={handleEditOrder}
                 onDelete={deleteOrder}
                 onStatusChange={updateOrderStatus}
+                selectedOrders={selectedOrders}
+                onSelect={handleSelect}
               />
             </>
           ) : (
