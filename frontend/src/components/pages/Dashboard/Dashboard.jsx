@@ -50,9 +50,9 @@ export default function Dashboard() {
     const cardData = [
         { title: 'Total Factories', count: counts.factories, icon: <Building className="w-5 h-5" />, bg: '#7C3AED', path: '/factory-management' },
         { title: 'Total Products', count: counts.models, icon: <Package className="w-5 h-5" />, bg: '#EF4444', path: '/management' },
-        { title: 'Total Distributors', count: counts.distributors, icon: <Truck className="w-5 h-5" />, bg: '#F59E0B', path: '/distributors' },
-        { title: 'Total Dealers', count: counts.dealers, icon: <Users className="w-5 h-5" />, bg: '#FB923C', path: '/dealers' },
-        { title: 'Total Orders', count: counts.orders, icon: <ShoppingCart className="w-5 h-5" />, bg: '#0EA5E9', path: '/orders' },
+        // { title: 'Total Distributors', count: counts.distributors, icon: <Truck className="w-5 h-5" />, bg: '#F59E0B', path: '/distributors' },
+        // { title: 'Total Dealers', count: counts.dealers, icon: <Users className="w-5 h-5" />, bg: '#FB923C', path: '/dealers' },
+        // { title: 'Total Orders', count: counts.orders, icon: <ShoppingCart className="w-5 h-5" />, bg: '#0EA5E9', path: '/orders' },
         // { title: 'Pending Orders', count: orderStats.pending, icon: <ShoppingCart className="w-5 h-5" />, bg: '#F59E0B', path: '/orders' },
         // { title: 'Completed Orders', count: orderStats.completed, icon: <ShoppingCart className="w-5 h-5" />, bg: '#10B981', path: '/orders' },
         // { title: 'Dispatched Orders', count: orderStats.dispatched, icon: <Truck className="w-5 h-5" />, bg: '#7C3AED', path: '/orders' },
@@ -86,10 +86,10 @@ export default function Dashboard() {
                 </div>
             </div>
         </div>
-        <div className="mt-2 bg-white w-[50%] rounded-xl p-5">
+        {/* <div className="mt-2 bg-white w-[50%] rounded-xl p-5">
             <h1 className="mb-5 font-bold text-lg">Order Status Overview</h1>
             <ProductGraph />
-        </div>
+        </div> */}
     </div>
     );
 }
