@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { Search, Plus, X, FilePenLine, Trash2 } from 'lucide-react';
+import { Search, Plus, X, FilePenLine, Trash2, Box } from 'lucide-react';
 import ListComponent from '../../global/ListComponent';
 import ErrorBoundary from '../../global/ErrorBoundary';
 import { useDealers } from './hooks/useDealers';
+import { distributorDealerProductService } from '../../../services/distributorDealerProductService';
+import { toast } from 'react-hot-toast';
+
+import DealerProductGroupList from './components/DealerProductGroupList';
 
 function Dealers() {
     const {
@@ -19,6 +23,16 @@ function Dealers() {
     const [showDealerModal, setShowDealerModal] = useState(false);
     const [selectedDealer, setSelectedDealer] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
+    const [showProductsModal, setShowProductsModal] = useState(false);
+    const [dealerProducts, setDealerProducts] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // Apply pagination
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = dealers.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(dealers.length / itemsPerPage);
     
     const [newDealer, setNewDealer] = useState({
         name: '',
@@ -28,7 +42,9 @@ function Dealers() {
         contactPhone: '',
         email: '',
         status: 'Active',
-        distributor: '' // Initialize distributor field
+        distributor: '', // Initialize distributor field
+        username: '',
+        password: ''
     });
 
     const handleAddEditDealer = async (e) => {
@@ -74,6 +90,18 @@ function Dealers() {
             status: 'Active',
             distributor: ''
         });
+    };
+
+    const handleViewProducts = async (dealer) => {
+        try {
+            const { data } = await distributorDealerProductService.getDealerProducts(dealer._id);
+            setDealerProducts(data);
+            setSelectedDealer(dealer);
+            setShowProductsModal(true);
+        } catch (error) {
+            toast.error('Error fetching dealer products');
+            console.error('Error:', error);
+        }
     };
 
     return (
@@ -127,13 +155,14 @@ function Dealers() {
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Territory</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distributor</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
                                         <ListComponent
-                                            items={dealers}
+                                            items={currentItems}
                                             renderItem={(dealer) => (
                                                 <>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dealer.dealerId}</td>
@@ -146,6 +175,17 @@ function Dealers() {
                                                             <p className="text-gray-500">{dealer.contactPhone}</p>
                                                         </div>
                                                     </td>
+                                                    
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.distributor?.name}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <button
+                                                            onClick={() => handleViewProducts(dealer)}
+                                                            className="inline-flex items-center px-2.5 py-1.5 border border-[#4d55f5] text-xs font-medium rounded text-[#4d55f5] hover:bg-[#4d55f5] hover:text-white transition-colors"
+                                                        >
+                                                            <Box className="h-4 w-4 mr-1" />
+                                                            {dealer.productCount || 0} Products
+                                                        </button>
+                                                    </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                                                             dealer.status === 'Active'
@@ -155,7 +195,6 @@ function Dealers() {
                                                             {dealer.status}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.distributor?.name}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                         <div className="flex items-center space-x-2">
                                                             <button 
@@ -180,6 +219,47 @@ function Dealers() {
                                             listClassName="bg-white divide-y divide-gray-200"
                                         />
                                     </table>
+                                </div>
+
+                                {/* Pagination */}
+                                <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
+                                    <div className="text-sm text-gray-700">
+                                        Rows per page:
+                                        <select
+                                            className="ml-2 border border-gray-300 rounded px-2 py-1"
+                                            value={itemsPerPage}
+                                            onChange={(e) => {
+                                                setItemsPerPage(Number(e.target.value));
+                                                setCurrentPage(1); // Reset to first page when items per page changes
+                                            }}
+                                        >
+                                            <option value="10">10</option>
+                                            <option value="20">20</option>
+                                            <option value="30">30</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <span className="text-sm text-gray-700">
+                                            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, dealers.length)} of {dealers.length} dealers
+                                        </span>
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                                        >
+                                            Previous
+                                        </button>
+                                        <span className="text-sm text-gray-700">
+                                            Page {currentPage} of {totalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="md:hidden space-y-4">
@@ -350,6 +430,28 @@ function Dealers() {
                                         ))}
                                     </select>
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Username *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newDealer.username}
+                                        onChange={(e) => setNewDealer({...newDealer, username: e.target.value})}
+                                        placeholder="Enter username"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={newDealer.password}
+                                        onChange={(e) => setNewDealer({...newDealer, password: e.target.value})}
+                                        placeholder="Enter password"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    />
+                                </div>
                             </div>
 
                             <div className="mt-8">
@@ -361,6 +463,32 @@ function Dealers() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {showProductsModal && (
+                <div className="fixed inset-0 bg-black/70 bg-opacity-20 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Products for {selectedDealer?.name}
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowProductsModal(false);
+                                    setSelectedDealer(null);
+                                    setDealerProducts([]);
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+                        
+                        <div className="mt-4">
+                            <DealerProductGroupList products={dealerProducts} />
+                        </div>
                     </div>
                 </div>
             )}

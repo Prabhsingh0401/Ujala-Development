@@ -2,45 +2,40 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import DistributorProductGroupList from './Distributors/components/DistributorProductGroupList';
-import DistributorQRScannerModal from '../global/DistributorQRScannerModal';
+import DealerProductGroupList from './Dealers/components/DealerProductGroupList';
+import DealerQRScannerModal from '../global/DealerQRScannerModal';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/distributors`;
+const API_URL = `${import.meta.env.VITE_API_URL}/api/distributor-dealer-products/dealer`;
 
-export default function DistributorProducts() {
+export default function DealerProducts() {
     const { user } = useContext(AuthContext);
     const [products, setProducts] = useState([]);
-    const [dealers, setDealers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showScannerModal, setShowScannerModal] = useState(false);
 
-    const fetchProducts = async () => {
-        if (!user || !user.distributor) {
+    const fetchDealerProducts = async () => {
+        if (!user || !user.dealer) {
             setLoading(false);
             return;
         }
         try {
             setLoading(true);
-            const [productsResponse, dealersResponse] = await Promise.all([
-                axios.get(`${API_URL}/${user.distributor._id}/products`),
-                axios.get(`${API_URL}/${user.distributor._id}/dealers`)
-            ]);
-            setProducts(productsResponse.data);
-            setDealers(dealersResponse.data);
+            const response = await axios.get(`${API_URL}/${user.dealer._id}/products`);
+            setProducts(response.data);
         } catch (error) {
-            toast.error('Error fetching data');
-            console.error('Error fetching data:', error);
+            toast.error('Error fetching dealer products');
+            console.error('Error fetching dealer products:', error);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchProducts();
+        fetchDealerProducts();
     }, [user]);
 
     return (
-        <div className="p-2">
+        <div className="p-4">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Products</h1>
             <div className="flex justify-end mb-4">
                 <button
@@ -57,13 +52,13 @@ export default function DistributorProducts() {
                         <p className="mt-4 text-gray-500">Loading products...</p>
                     </div>
                 ) : (
-                    <DistributorProductGroupList products={products} dealers={dealers} distributor={user.distributor} />
+                    <DealerProductGroupList products={products} />
                 )}
             </div>
-            <DistributorQRScannerModal 
-                isOpen={showScannerModal} 
+            <DealerQRScannerModal
+                isOpen={showScannerModal}
                 onClose={() => setShowScannerModal(false)}
-                onProductAssigned={fetchProducts}
+                onProductAssigned={fetchDealerProducts}
             />
         </div>
     );

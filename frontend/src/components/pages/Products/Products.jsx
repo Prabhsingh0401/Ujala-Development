@@ -13,6 +13,14 @@ export default function Products() {
     const { products, loading, fetchProducts } = useProducts(modelFilter); // Pass modelFilter to useProducts
     const [selectedProductIds, setSelectedProductIds] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // Apply pagination
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = products.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(products.length / itemsPerPage);
 
     const handleProductSelect = (productId, isSelected) => {
         setSelectedProductIds(prev =>
@@ -79,11 +87,52 @@ export default function Products() {
                     </div>
                 </div>
                 <ProductList
-                    products={products}
+                    products={currentItems}
                     loading={loading}
                     selectedProductIds={selectedProductIds}
                     onProductSelect={handleProductSelect}
                 />
+
+                {/* Pagination */}
+                <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                        Rows per page:
+                        <select
+                            className="ml-2 border border-gray-300 rounded px-2 py-1"
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                setItemsPerPage(Number(e.target.value));
+                                setCurrentPage(1); // Reset to first page when items per page changes
+                            }}
+                        >
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-700">
+                            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, products.length)} of {products.length} products
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm text-gray-700">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
 
                 <DistributorSelectionModal
                     isOpen={isModalOpen}

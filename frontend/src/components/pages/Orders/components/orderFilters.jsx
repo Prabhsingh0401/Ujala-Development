@@ -7,8 +7,6 @@ export function OrderFilters({
   onFactoryFilterChange,
   orderTypeFilter,
   onOrderTypeFilterChange,
-  dispatchedFilter,
-  onDispatchedFilterChange,
   factories,
   onAddOrder
 }) {
@@ -45,16 +43,6 @@ export function OrderFilters({
         <option value="1_unit">1N</option>
         <option value="2_units">2N</option>
         <option value="3_units">3N</option>
-      </select>
-
-      <select
-        value={dispatchedFilter}
-        onChange={(e) => onDispatchedFilterChange(e.target.value)}
-        className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-      >
-        <option value="all">All Dispatched</option>
-        <option value="true">Dispatched</option>
-        <option value="false">Not Dispatched</option>
       </select>
 
       <button

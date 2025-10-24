@@ -2,13 +2,19 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { X } from 'lucide-react';
+import DealerProductGroupList from './Dealers/components/DealerProductGroupList';
+import { distributorDealerProductService } from '../../services/distributorDealerProductService';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/distributor/dealers`;
+const API_URL = `${import.meta.env.VITE_API_URL}/api/distributors`;
 
 export default function DistributorDealers() {
     const { user } = useContext(AuthContext);
     const [dealers, setDealers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedDealer, setSelectedDealer] = useState(null);
+    const [showProductsModal, setShowProductsModal] = useState(false);
+    const [dealerProducts, setDealerProducts] = useState([]);
 
     useEffect(() => {
         const fetchDistributorDealers = async () => {
@@ -18,7 +24,7 @@ export default function DistributorDealers() {
             }
             try {
                 setLoading(true);
-                const response = await axios.get(`${API_URL}/${user.distributor._id}`);
+                const response = await axios.get(`${API_URL}/${user.distributor._id}/dealers`);
                 setDealers(response.data);
             } catch (error) {
                 toast.error('Error fetching distributor dealers');
@@ -30,6 +36,18 @@ export default function DistributorDealers() {
 
         fetchDistributorDealers();
     }, [user]);
+
+    const handleViewProducts = async (dealer) => {
+        try {
+            const { data } = await distributorDealerProductService.getDealerProducts(dealer._id);
+            setDealerProducts(data);
+            setSelectedDealer(dealer);
+            setShowProductsModal(true);
+        } catch (error) {
+            toast.error('Error fetching dealer products');
+            console.error('Error:', error);
+        }
+    };
 
     if (loading) {
         return (
@@ -55,6 +73,7 @@ export default function DistributorDealers() {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Phone</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -74,6 +93,14 @@ export default function DistributorDealers() {
                                                 {dealer.status}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <button
+                                                onClick={() => handleViewProducts(dealer)}
+                                                className="inline-flex items-center px-2.5 py-1.5 border border-[#4d55f5] text-xs font-medium rounded text-[#4d55f5] hover:bg-[#4d55f5] hover:text-white transition-colors"
+                                            >
+                                                {dealer.productCount || 0} Products
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -85,6 +112,32 @@ export default function DistributorDealers() {
                     </div>
                 )}
             </div>
+
+            {showProductsModal && (
+                <div className="fixed inset-0 bg-black/70 bg-opacity-20 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Products for {selectedDealer?.name}
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowProductsModal(false);
+                                    setSelectedDealer(null);
+                                    setDealerProducts([]);
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+                        
+                        <div className="mt-4">
+                            <DealerProductGroupList products={dealerProducts} />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

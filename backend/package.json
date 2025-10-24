@@ -7,9 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node app.js",
-    "dev": "nodemon app.js",
-    "build": "node node_modules/@sparticuz/chromium/install.js && echo 'Build complete'",
-    "init-users": "node scripts/initUsers.js"
+    "dev":"nodemon app.js" 
   },
   "keywords": [],
   "author": "",

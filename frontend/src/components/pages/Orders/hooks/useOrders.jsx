@@ -43,8 +43,9 @@ export const useOrders = () => {
         orderService.fetchModels()
       ]);
 
-      setOrders(ordersRes.data);
-      updateStatusTabCounts(ordersRes.data);
+      const sortedOrders = ordersRes.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setOrders(sortedOrders);
+      updateStatusTabCounts(sortedOrders);
       setFactories(Array.isArray(factoriesRes.data) ? factoriesRes.data : []);
       setCategories(categoriesRes.data.filter(cat => cat.status === 'Active'));
       setModels(modelsRes.data.filter(model => model.status === 'Active'));

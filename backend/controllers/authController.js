@@ -28,6 +28,12 @@ export const login = async (req, res) => {
                 role,
                 isActive: true 
             }).populate('distributor');
+        } else if (role === 'dealer') {
+            user = await User.findOne({ 
+                username, 
+                role,
+                isActive: true 
+            }).populate('dealer');
         } else {
             user = await User.findOne({ 
                 username, 
@@ -46,6 +52,7 @@ export const login = async (req, res) => {
             role: user.role,
             factory: user.factory,
             distributor: user.distributor,
+            dealer: user.dealer,
             token: generateToken(user._id, user.role), // Generate and include token with role
         };
 
@@ -133,6 +140,8 @@ export const requestPasswordReset = async (req, res) => {
             user = await User.findOne({ username, role }).populate('factory');
         } else if (role === 'distributor') {
             user = await User.findOne({ username, role }).populate('distributor');
+        } else if (role === 'dealer') {
+            user = await User.findOne({ username, role }).populate('dealer');
         } else {
             return res.status(400).json({ message: 'Invalid role for password reset' });
         }
@@ -160,6 +169,8 @@ export const requestPasswordReset = async (req, res) => {
             newRequestData.factory = user.factory._id;
         } else if (role === 'distributor') {
             newRequestData.distributor = user.distributor._id;
+        } else if (role === 'dealer') {
+            newRequestData.dealer = user.dealer._id;
         }
 
         await PasswordResetRequest.create(newRequestData);

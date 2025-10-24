@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'factory', 'distributor'],
+        enum: ['admin', 'factory', 'distributor', 'dealer'],
         required: true
     },
     factory: {
@@ -27,6 +27,13 @@ const userSchema = new mongoose.Schema({
         ref: 'Distributor',
         required: function() {
             return this.role === 'distributor';
+        }
+    },
+    dealer: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Dealer',
+        required: function() {
+            return this.role === 'dealer';
         }
     },
     isActive: {

@@ -17,4 +17,5 @@ export const orderService = {
   transferToProducts: (orderItemIds) => axios.post(`${API_URL}/transfer-to-products`, { orderItemIds }),
   fetchOrderStats: (id) => axios.get(`${API_URL}/${id}/factory-stats`),
   fetchOrderItems: (id) => axios.get(`${API_URL}/${id}/items`),
+  fetchAllOrderItems: () => axios.get(`${API_URL}/items`),
 };

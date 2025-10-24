@@ -115,12 +115,16 @@ function Distributors() {
 
     const handleViewProducts = async (distributor) => {
         try {
-            const { data } = await axios.get(`${API_URL}/${distributor._id}/products`);
-            setDistributorProducts(data);
+            const [productsResponse, dealersResponse] = await Promise.all([
+                axios.get(`${API_URL}/${distributor._id}/products`),
+                axios.get(`${API_URL}/${distributor._id}/dealers`)
+            ]);
+            setDistributorProducts(productsResponse.data);
+            setDistributorDealers(dealersResponse.data);
             setSelectedDistributor(distributor);
             setShowProductsModal(true);
         } catch (error) {
-            toast.error('Error fetching distributor products');
+            toast.error('Error fetching distributor data');
             console.error('Error:', error);
         }
     };
@@ -512,7 +516,7 @@ function Distributors() {
                         </div>
                         
                         <div className="mt-4">
-                            <DistributorProductGroupList products={distributorProducts} />
+                            <DistributorProductGroupList products={distributorProducts} dealers={distributorDealers} distributor={selectedDistributor} />
                         </div>
                     </div>
                 </div>

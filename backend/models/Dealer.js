@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const dealerSchema = new mongoose.Schema({
     dealerId: {
@@ -47,6 +48,16 @@ const dealerSchema = new mongoose.Schema({
     distributor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Distributor'
+    },
+    username: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true
+    },
+    password: {
+        type: String,
+        required: true
     }
 }, {
     timestamps: true
@@ -54,6 +65,13 @@ const dealerSchema = new mongoose.Schema({
 
 // Add index for better search performance
 dealerSchema.index({ name: 'text', location: 'text', territory: 'text' });
+
+dealerSchema.pre('save', async function(next) {
+    if (this.isModified('password')) {
+        this.password = await bcrypt.hash(this.password, 10);
+    }
+    next();
+});
 
 const Dealer = mongoose.model('Dealer', dealerSchema);
 

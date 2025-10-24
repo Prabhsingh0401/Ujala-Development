@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Building, ShoppingCart, Package, Users, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import ProductGraph from './ProductGraph';
 
 export default function Dashboard() {
     // 1. Define the loading state and initialize it to true
@@ -48,9 +49,9 @@ export default function Dashboard() {
 
     const cardData = [
         { title: 'Total Factories', count: counts.factories, icon: <Building className="w-5 h-5" />, bg: '#7C3AED', path: '/factory-management' },
-        // { title: 'Total Products', count: counts.models, icon: <Package className="w-5 h-5" />, bg: '#EF4444', path: '/management' },
-        // { title: 'Total Distributors', count: counts.distributors, icon: <Truck className="w-5 h-5" />, bg: '#F59E0B', path: '/distributors' },
-        // { title: 'Total Dealers', count: counts.dealers, icon: <Users className="w-5 h-5" />, bg: '#FB923C', path: '/dealers' },
+        { title: 'Total Products', count: counts.models, icon: <Package className="w-5 h-5" />, bg: '#EF4444', path: '/management' },
+        { title: 'Total Distributors', count: counts.distributors, icon: <Truck className="w-5 h-5" />, bg: '#F59E0B', path: '/distributors' },
+        { title: 'Total Dealers', count: counts.dealers, icon: <Users className="w-5 h-5" />, bg: '#FB923C', path: '/dealers' },
         { title: 'Total Orders', count: counts.orders, icon: <ShoppingCart className="w-5 h-5" />, bg: '#0EA5E9', path: '/orders' },
         // { title: 'Pending Orders', count: orderStats.pending, icon: <ShoppingCart className="w-5 h-5" />, bg: '#F59E0B', path: '/orders' },
         // { title: 'Completed Orders', count: orderStats.completed, icon: <ShoppingCart className="w-5 h-5" />, bg: '#10B981', path: '/orders' },
@@ -58,7 +59,8 @@ export default function Dashboard() {
     ];
 
     return (
-        <div className="p-1 bg-white min-h-50 mt-10 mr-5 rounded-xl">
+    <div>
+        <div className="p-1 bg-white min-h-50 mt-3 mr-5 rounded-xl">
             <div className="p-3 sm:p-6">
                 <h1 className="mb-5 font-bold text-lg">Progress Overview</h1>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-1">
@@ -84,5 +86,10 @@ export default function Dashboard() {
                 </div>
             </div>
         </div>
+        <div className="mt-2 bg-white w-[50%] rounded-xl p-5">
+            <h1 className="mb-5 font-bold text-lg">Order Status Overview</h1>
+            <ProductGraph />
+        </div>
+    </div>
     );
 }

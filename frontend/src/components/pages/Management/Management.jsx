@@ -22,7 +22,7 @@ const Management = () => {
 
     return (
         <div className="p-6">
-            <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+            <div className="flex space-x-1 mb-6 bg-gray-300 p-1 rounded-lg w-fit">
                 <TabButton
                     id="categories"
                     label="Categories"

@@ -11,7 +11,10 @@ import dealerRoutes from './routes/dealerRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 
 import distributorProductRoutes from './routes/distributorProductRoutes.js';
-import distributorDealerRoutes from './routes/distributorDealerRoutes.js';
+
+import dealerProductRoutes from './routes/dealerProductRoutes.js';
+
+import distributorDealerProductRoutes from './routes/distributorDealerProductRoutes.js';
 import factoryOrderRoutes from './routes/factoryOrderRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import modelRoutes from './routes/modelRoutes.js';
@@ -54,7 +57,9 @@ app.use('/api/dealers', dealerRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 app.use('/api/distributor/products', distributorProductRoutes);
-app.use('/api/distributor/dealers', distributorDealerRoutes);
+
+app.use('/api/distributor-dealer-products', distributorDealerProductRoutes);
+app.use('/api/dealer/products', dealerProductRoutes);
 app.use('/api/factory/orders', factoryOrderRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/models', modelRoutes);

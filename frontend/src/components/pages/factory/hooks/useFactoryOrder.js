@@ -34,19 +34,34 @@ export const useFactoryOrders = () => {
 
     const handleStatusChange = async (itemIds, newStatus) => {
         if (!newStatus) return;
-        
+
+        let itemsToDispatch = [];
+        let itemsNotCompleted = [];
+
         if (newStatus === 'Dispatched') {
-            const itemsToUpdate = orders.filter(o => itemIds.includes(o._id));
-            const allAreCompleted = itemsToUpdate.every(item => item.status === 'Completed');
-            if (!allAreCompleted) {
-                toast.error('Error: Only "Completed" items can be dispatched.');
+            const selectedOrderItems = orders.filter(o => itemIds.includes(o._id));
+            itemsToDispatch = selectedOrderItems.filter(item => item.status === 'Completed');
+            itemsNotCompleted = selectedOrderItems.filter(item => item.status !== 'Completed');
+
+            if (itemsToDispatch.length === 0) {
+                toast.error('No selected items are in "Completed" status to be dispatched.');
                 return;
             }
+        } else {
+            itemsToDispatch = orders.filter(o => itemIds.includes(o._id));
         }
 
         try {
-            await axios.patch(`${API_URL}/${user.factory._id}/orders/bulk-status`, { itemIds, status: newStatus });
-            toast.success(`Status updated to ${newStatus}`);
+            if (itemsToDispatch.length > 0) {
+                const dispatchableItemIds = itemsToDispatch.map(item => item._id);
+                await axios.patch(`${API_URL}/${user.factory._id}/orders/bulk-status`, { itemIds: dispatchableItemIds, status: newStatus });
+                toast.success(`Status updated to ${newStatus} for ${dispatchableItemIds.length} items.`);
+            }
+
+            if (itemsNotCompleted.length > 0) {
+                const serialNumbersNotDispatched = itemsNotCompleted.map(item => item.serialNumber).join(', ');
+                toast.warn(`Skipped ${itemsNotCompleted.length} items not in "Completed" status: ${serialNumbersNotDispatched}`);
+            }
             fetchOrders(); // Re-fetch to get the latest data
         } catch (err) {
             toast.error(err.response?.data?.message || 'Error updating status');

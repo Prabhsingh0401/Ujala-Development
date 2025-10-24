@@ -8,8 +8,8 @@ const itemsPerPage = 10;
 export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allOrders, handleStatusChange, downloadMultiplePDFs }) {
     const [modalActiveTab, setModalActiveTab] = useState('all');
     const [orderSearchTerm, setOrderSearchTerm] = useState('');
-    const [orderTypeFilter, setOrderTypeFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10); // Add itemsPerPage state
     const [selectedItems, setSelectedItems] = useState([]);
     const [isDownloading, setIsDownloading] = useState(false);
     const [startSerialNumber, setStartSerialNumber] = useState('');
@@ -19,7 +19,6 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
         if (isOpen) {
             setModalActiveTab('all');
             setOrderSearchTerm('');
-            setOrderTypeFilter('all');
             setCurrentPage(1);
             setSelectedItems([]);
             setStartSerialNumber('');
@@ -35,12 +34,11 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
         const matchesSearch = orderSearchTerm === '' ||
             item.serialNumber?.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
             item.orderId?.toLowerCase().includes(orderSearchTerm.toLowerCase());
-        const matchesType = orderTypeFilter === 'all' || item.orderType === orderTypeFilter;
         
         // ## FIX: Simplified and corrected the status filtering logic ##
         const matchesStatus = modalActiveTab === 'all' || item.status.toLowerCase() === modalActiveTab;
         
-        return matchesSearch && matchesType && matchesStatus;
+        return matchesSearch && matchesStatus;
     });
 
     const groupedOrders = Object.entries(
@@ -165,8 +163,8 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
         }
     };
 
-    const selectedOrderObjects = allOrders.filter(o => selectedItems.includes(o._id));
-    const canBulkDispatch = selectedOrderObjects.length > 0 && selectedOrderObjects.every(o => o.status === 'Completed');
+    const selectedOrderItems = relatedOrders.filter(item => selectedItems.includes(item._id));
+    const canBulkDispatchSelected = selectedOrderItems.length > 0 && selectedOrderItems.every(item => item.status === 'Completed');
 
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -191,7 +189,6 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
                         </div>
                         <div className="flex flex-col sm:flex-row gap-4">
                             <div className="flex-1"><div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" /><input type="text" placeholder="Search by serial number..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600" /></div></div>
-                            <div className="sm:w-48"><select value={orderTypeFilter} onChange={(e) => setOrderTypeFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"><option value="all">All Types</option><option value="1_unit">1 Unit/Box</option><option value="2_units">2 Units/Box</option><option value="3_units">3 Units/Box</option></select></div>
                         </div>
                         {selectedItems.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -201,7 +198,7 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
                                         <option value="">Update Status</option>
                                         <option value="Pending">Pending</option>
                                         <option value="Completed">Completed</option>
-                                        {canBulkDispatch && <option value="Dispatched">Dispatched</option>}
+                                        <option value="Dispatched" disabled={!canBulkDispatchSelected}>Dispatched</option>
                                     </select>
                                     <button onClick={handleDownloadClick} disabled={isDownloading || selectedItems.length === 0} className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1">
                                         {isDownloading ? (<><div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>Downloading...</>) : 'Download PDFs'}
@@ -273,6 +270,21 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
 
                 <div className="border-t border-gray-200 px-4 sm:px-6 py-3 bg-gray-50">
                     <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-700">
+                            Rows per page:
+                            <select
+                                className="ml-2 border border-gray-300 rounded px-2 py-1"
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1); // Reset to first page when items per page changes
+                                }}
+                            >
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="30">30</option>
+                            </select>
+                        </div>
                         <div className="text-sm text-gray-700">Page {currentPage} of {totalPages}</div>
                         {totalPages > 1 && (<div className="flex items-center space-x-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 text-sm border rounded disabled:opacity-50">Previous</button><button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-sm border rounded disabled:opacity-50">Next</button></div>)}
                     </div>

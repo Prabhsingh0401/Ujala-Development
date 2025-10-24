@@ -27,9 +27,10 @@ export const AuthProvider = ({ children }) => {
     const isAuthenticated = user && user.role === 'admin';
     const isFactoryAuthenticated = user && user.role === 'factory';
     const isDistributorAuthenticated = user && user.role === 'distributor';
+    const isDealerAuthenticated = user && user.role === 'dealer';
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isFactoryAuthenticated, isDistributorAuthenticated, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isFactoryAuthenticated, isDistributorAuthenticated, isDealerAuthenticated, login, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );

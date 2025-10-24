@@ -1,7 +1,7 @@
 import './App.css'
 import { useContext, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
-import Dashboard from './components/pages/Dashboard'
+import Dashboard from './components/pages/Dashboard/Dashboard'
 import Management from './components/pages/Management/Management'
 import FactoryManagement from './components/pages/FactoryManagement/FactoryManagement'
 import FactoryOrders from './components/pages/factory/factoryorder';
@@ -10,6 +10,9 @@ import FactoryDashboard from './components/pages/FactoryDashboard';
 import DistributorDashboard from './components/pages/DistributorDashboard';
 import DistributorProducts from './components/pages/DistributorProducts';
 import DistributorDealers from './components/pages/DistributorDealers';
+import DealerLayout from './components/global/DealerLayout';
+import DealerDashboard from './components/pages/DealerDashboard';
+import DealerProducts from './components/pages/DealerProducts';
 import Orders from './components/pages/Orders/Orders'
 import Products from './components/pages/Products/Products'
 import ErrorBoundary from './components/global/ErrorBoundary'
@@ -55,6 +58,18 @@ const App = () => {
             <Route path="dashboard" element={<DistributorDashboard />} />
             <Route path="products" element={<DistributorProducts />} />
             <Route path="dealers" element={<DistributorDealers />} />
+          </Route>
+
+          <Route 
+            path="/dealer" 
+            element={
+              <DealerProtectedRoute>
+                <DealerLayout />
+              </DealerProtectedRoute>
+            }
+          >
+            <Route path="dashboard" element={<DealerDashboard />} />
+            <Route path="products" element={<DealerProducts />} />
           </Route>
 
           <Route 
@@ -127,6 +142,22 @@ const DistributorProtectedRoute = ({ children }) => {
   }
 
   if (!isDistributorAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+const DealerProtectedRoute = ({ children }) => {
+  const { isDealerAuthenticated, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+    </div>;
+  }
+
+  if (!isDealerAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

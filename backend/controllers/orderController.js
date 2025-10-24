@@ -125,55 +125,88 @@ export const createOrder = async (req, res) => {
 export const updateOrder = async (req, res) => {
     try {
         const { id: _id } = req.params;
-        const order = req.body;
-        
+        const orderData = req.body;
+
         if (!mongoose.Types.ObjectId.isValid(_id)) {
             return res.status(400).json({ message: `Invalid order ID format: ${_id}` });
         }
 
-        const existingOrder = await Order.findById(_id).populate('factory');
+        const existingOrder = await Order.findById(_id).populate('factory').populate('model');
         if (!existingOrder) {
             return res.status(404).json({ message: `Order not found with id: ${_id}` });
         }
-        
-        if (order.factory) {
-            if (!mongoose.Types.ObjectId.isValid(order.factory)) {
-                return res.status(400).json({ message: `Invalid factory ID format: ${order.factory}` });
-            }
-            const factory = await Factory.findById(order.factory);
-            if (!factory) {
-                return res.status(404).json({ message: `Factory not found with id: ${order.factory}` });
-            }
+
+        const { orderType, totalPumps, factory: factoryId, model: modelId, category: categoryId } = orderData;
+
+        const unitsPerBox = orderType === '2_units' ? 2 : orderType === '3_units' ? 3 : 1;
+        const quantity = Math.ceil(totalPumps / unitsPerBox);
+
+        const factory = await Factory.findById(factoryId);
+        if (!factory) {
+            return res.status(404).json({ message: 'Factory not found' });
         }
 
-        const updatedOrder = await Order.findByIdAndUpdate(_id, { ...order, _id }, { new: true })
+        const model = await Model.findById(modelId);
+        if (!model) {
+            return res.status(404).json({ message: 'Model not found' });
+        }
+
+        // Delete existing order items
+        await OrderItem.deleteMany({ orderId: existingOrder.orderId });
+
+        let factoryCounter = await FactoryCounter.findOne({ factoryId });
+        if (!factoryCounter) {
+            factoryCounter = new FactoryCounter({ factoryId, counter: 10000 });
+        }
+
+        const monthStr = String(existingOrder.month).padStart(2, '0');
+        const yearStr = String(existingOrder.year).slice(-2);
+        const serialBase = `${monthStr}${yearStr}${factory.code.toUpperCase()}${model.code.toUpperCase()}`;
+
+        const orderItems = [];
+        for (let i = 1; i <= totalPumps; i++) {
+            factoryCounter.counter += 1;
+            const itemSerialNumber = `${serialBase}${factoryCounter.counter}`;
+            const boxNumber = Math.ceil(i / unitsPerBox);
+
+            const orderItem = new OrderItem({
+                orderId: existingOrder.orderId,
+                serialNumber: itemSerialNumber,
+                month: existingOrder.month,
+                year: existingOrder.year,
+                category: categoryId,
+                model: modelId,
+                factory: factoryId,
+                status: 'Pending',
+                orderType,
+                unitsPerBox,
+                boxNumber
+            });
+
+            orderItems.push(orderItem);
+        }
+
+        await OrderItem.insertMany(orderItems);
+        await factoryCounter.save();
+
+        const updatedOrderData = {
+            ...orderData,
+            quantity,
+            totalUnits: totalPumps,
+            unitsPerBox,
+            serialNumber: `${serialBase}${factoryCounter.counter - totalPumps + 1}-${factoryCounter.counter}`
+        };
+
+        const updatedOrder = await Order.findByIdAndUpdate(_id, updatedOrderData, { new: true })
             .populate('factory')
             .populate('category')
             .populate('model');
-
-        const updateData = {};
-        if (order.factory) updateData.factory = order.factory;
-        if (order.category) updateData.category = order.category;
-        if (order.model) updateData.model = order.model;
-        
-        if (Object.keys(updateData).length > 0) {
-            const existingItems = await OrderItem.find({ orderId: existingOrder.orderId });
-            
-            if (existingItems.length > 0) {
-                await OrderItem.updateMany(
-                    { orderId: existingOrder.orderId },
-                    { $set: updateData }
-                );
-            } else {
-                console.log('No OrderItems found for orderId:', existingOrder.orderId);
-            }
-        }
 
         res.json(updatedOrder);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
-}
+};
 
 export const deleteOrder = async (req, res) => {
     try {
@@ -435,6 +468,20 @@ export const getOrderItems = async (req, res) => {
         }
 
         const orderItems = await OrderItem.find({ orderId: order.orderId })
+            .populate('category')
+            .populate('model')
+            .populate('factory')
+            .sort({ serialNumber: 1 });
+
+        res.json(orderItems);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const getAllOrderItems = async (req, res) => {
+    try {
+        const orderItems = await OrderItem.find({})
             .populate('category')
             .populate('model')
             .populate('factory')

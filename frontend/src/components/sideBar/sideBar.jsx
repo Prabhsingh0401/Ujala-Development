@@ -287,9 +287,9 @@ export function SideBar({ sidebarOpen, toggleSidebar }) {
           {/* User Info & Logout */}
           <div className="mt-auto">
             {/* Notifications - Only show for admin */}
-            {/* {user?.role === 'admin' && (
+            {user?.role === 'admin' && (
               <div className="mb-4">
-                {sidebarOpen ? (
+                {/* {sidebarOpen ? (
                   <Link to="/notifications" className={`flex items-center py-2 px-3 rounded-xl group transition-all duration-200 ${isActive('/notifications') ? 'bg-white sidebar-pill' : ''}`}>
                     <div className={`p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 ${isActive('/notifications') ? 'bg-[var(--primary-purple)]' : 'bg-white/10'}`}>
                       <div className={isActive('/notifications') ? 'text-white' : 'text-white/90'}>
@@ -306,9 +306,9 @@ export function SideBar({ sidebarOpen, toggleSidebar }) {
                       </div>
                     </div>
                   </Link>
-                )}
+                )} */}
               </div>
-            )} */}
+            )}
             
             <div className="mt-4">
               {sidebarOpen ? (

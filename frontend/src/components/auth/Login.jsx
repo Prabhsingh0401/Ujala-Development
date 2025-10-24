@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { AuthContext } from '../../context/AuthContext';
 import { Building, Shield, ArrowLeft, X, Eye, EyeOff } from 'lucide-react';
-import DistributorRegister from './DistributorRegister'; // Import the new component
+import DistributorRegister from './DistributorRegister'; 
 
 const userTypes = [
     {
@@ -27,6 +27,13 @@ const userTypes = [
     //     description: 'Distributor operations',
     //     icon: Building, // Using Building icon for now, can change later if needed
     //     bg: '#3B82F6' // A distinct color for distributor
+    // },
+    // {
+    //     id: 'dealer',
+    //     title: 'Dealer',
+    //     description: 'Dealer operations',
+    //     icon: Building, // Using Building icon for now, can change later if needed
+    //     bg: '#10B981' // A distinct color for dealer
     // }
 ];
 
@@ -67,6 +74,8 @@ export default function Login() {
                 navigate('/factory/orders');
             } else if (selectedUserType === 'distributor') {
                 navigate('/distributor/dashboard'); // Redirect to distributor dashboard
+            } else if (selectedUserType === 'dealer') {
+                navigate('/dealer/dashboard'); // Redirect to dealer dashboard
             }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Login failed');
@@ -102,12 +111,12 @@ export default function Login() {
                 </div>
             </div>
             <div className="w-1/2 flex items-center justify-center p-8">
-                <div className="w-full max-w-md">
+                <div className="w-full max-w-2xl">
                     {!selectedUserType ? (
                         <div>
                             <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
                             <p className="text-gray-600 mb-8">Please select your user type to continue.</p>
-                            <div className="grid grid-cols-1 gap-4">
+                            <div className="grid grid-cols-2 gap-2">
                                 {userTypes.map((type) => {
                                     const Icon = type.icon;
                                     return (
@@ -146,7 +155,7 @@ export default function Login() {
                                     <ArrowLeft className="w-5 h-5" />
                                 </button>
                                 <h2 className="text-3xl font-bold text-gray-900">
-                                    Welcome Back {selectedUserType === 'admin' ? 'Admin' : selectedUserType === 'factory' ? 'Factory' : 'Distributor'}!
+                                    Welcome Back {selectedUserType === 'admin' ? 'Admin' : selectedUserType === 'factory' ? 'Factory' : selectedUserType === 'distributor' ? 'Distributor' : 'Dealer'}!
                                 </h2>
                             </div>
                             <p className="text-gray-600 mb-8">Please enter your credentials.</p>
@@ -195,7 +204,7 @@ export default function Login() {
                                 >
                                     {loading ? 'Signing In...' : 'Sign In'}
                                 </button>
-                                {(selectedUserType === 'factory' || selectedUserType === 'distributor') && (
+                                {(selectedUserType === 'factory' || selectedUserType === 'distributor' || selectedUserType === 'dealer') && (
                                     <div className="mt-4 text-center flex justify-between items-center">
                                         <button
                                             type="button"

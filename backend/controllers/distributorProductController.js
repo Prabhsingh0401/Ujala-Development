@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import Product from '../models/Product.js';
+import User from '../models/User.js';
 
 // @desc    Get all products for a distributor (from query param)
 // @route   GET /api/distributor/products?distributorId=...
@@ -109,4 +110,38 @@ const assignProductsToDistributor = asyncHandler(async (req, res) => {
     res.json({ message: `${updatedProducts.modifiedCount} products assigned to distributor ${distributorId}` });
 });
 
-export { getProducts, getDistributorProducts, createProduct, updateProduct, deleteProduct, assignProductsToDistributor };
+const assignProductBySerial = asyncHandler(async (req, res) => {
+    const { serialNumber } = req.body;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user || !user.distributor) {
+        res.status(401);
+        throw new Error('User is not a distributor');
+    }
+    const distributorId = user.distributor;
+
+    if (!serialNumber) {
+        res.status(400);
+        throw new Error('Serial number is required');
+    }
+
+    const product = await Product.findOne({ serialNumber });
+
+    if (!product) {
+        res.status(404);
+        throw new Error('Product not found');
+    }
+
+    if (product.distributor) {
+        res.status(400);
+        throw new Error('Product already assigned to a distributor');
+    }
+
+    product.distributor = distributorId;
+    await product.save();
+
+    res.json({ message: 'Product assigned successfully', product });
+});
+
+export { getProducts, getDistributorProducts, createProduct, updateProduct, deleteProduct, assignProductsToDistributor, assignProductBySerial };

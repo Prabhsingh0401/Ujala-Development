@@ -7,7 +7,7 @@ const passwordResetRequestSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['factory', 'distributor'],
+        enum: ['factory', 'distributor', 'dealer'],
         required: true
     },
     factory: {
@@ -22,6 +22,13 @@ const passwordResetRequestSchema = new mongoose.Schema({
         ref: 'Distributor',
         required: function() {
             return this.role === 'distributor';
+        }
+    },
+    dealer: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Dealer',
+        required: function() {
+            return this.role === 'dealer';
         }
     },
     status: {

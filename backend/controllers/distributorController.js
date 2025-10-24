@@ -135,16 +135,93 @@ export const deleteDistributor = async (req, res) => {
     }
 };
 
+import mongoose from 'mongoose';
+
 export const getDistributorProducts = async (req, res) => {
     try {
         const { id } = req.params; // Distributor ID
 
-        // Find products where the distributor field matches the provided ID
-        const products = await Product.find({ distributor: id })
-            .populate('category') // Populate related fields if needed
-            .populate('model')
-            .populate('factory');
-            
+        const products = await Product.aggregate([
+            {
+                $match: { distributor: new mongoose.Types.ObjectId(id) }
+            },
+            {
+                $lookup: {
+                    from: 'distributordealerproducts',
+                    localField: '_id',
+                    foreignField: 'product',
+                    as: 'assignment'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$assignment',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $lookup: {
+                    from: 'dealers',
+                    localField: 'assignment.dealer',
+                    foreignField: '_id',
+                    as: 'assignedDealer'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$assignedDealer',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $lookup: {
+                    from: 'categories',
+                    localField: 'category',
+                    foreignField: '_id',
+                    as: 'category'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$category',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $lookup: {
+                    from: 'models',
+                    localField: 'model',
+                    foreignField: '_id',
+                    as: 'model'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$model',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $lookup: {
+                    from: 'factories',
+                    localField: 'factory',
+                    foreignField: '_id',
+                    as: 'factory'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$factory',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $addFields: {
+                    assignedTo: '$assignedDealer.name'
+                }
+            }
+        ]);
+
         res.json(products);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -176,7 +253,43 @@ export const getDistributorDealers = async (req, res) => {
             return res.status(404).json({ message: 'Distributor not found' });
         }
 
-        res.json(distributor.dealers);
+        const dealers = await Distributor.aggregate([
+            {
+                $match: { _id: new mongoose.Types.ObjectId(req.params.id) }
+            },
+            {
+                $unwind: '$dealers'
+            },
+            {
+                $lookup: {
+                    from: 'dealers',
+                    localField: 'dealers',
+                    foreignField: '_id',
+                    as: 'dealerInfo'
+                }
+            },
+            {
+                $unwind: '$dealerInfo'
+            },
+            {
+                $lookup: {
+                    from: 'distributordealerproducts',
+                    localField: 'dealerInfo._id',
+                    foreignField: 'dealer',
+                    as: 'assignedProducts'
+                }
+            },
+            {
+                $addFields: {
+                    'dealerInfo.productCount': { $size: '$assignedProducts' }
+                }
+            },
+            {
+                $replaceRoot: { newRoot: '$dealerInfo' }
+            }
+        ]);
+
+        res.json(dealers);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

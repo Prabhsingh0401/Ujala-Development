@@ -18,7 +18,6 @@ function Orders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [factoryFilter, setFactoryFilter] = useState('all');
   const [orderTypeFilter, setOrderTypeFilter] = useState('all');
-  const [dispatchedFilter, setDispatchedFilter] = useState('all');
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showOrderDetailsModal, setShowOrderDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -66,9 +65,8 @@ function Orders() {
 
     const matchesFactory = factoryFilter === 'all' || order.factory?._id === factoryFilter;
     const matchesOrderType = orderTypeFilter === 'all' || order.orderType === orderTypeFilter;
-    const matchesDispatched = dispatchedFilter === 'all' || String(order.dispatched) === dispatchedFilter;
 
-    return matchesSearch && matchesFactory && matchesOrderType && matchesDispatched;
+    return matchesSearch && matchesFactory && matchesOrderType;
   });
 
   // Apply pagination
@@ -230,8 +228,6 @@ function Orders() {
                   onFactoryFilterChange={setFactoryFilter}
                   orderTypeFilter={orderTypeFilter}
                   onOrderTypeFilterChange={setOrderTypeFilter}
-                  dispatchedFilter={dispatchedFilter}
-                  onDispatchedFilterChange={setDispatchedFilter}
                   factories={factories}
                   onAddOrder={handleAddOrderClick}
                 />
