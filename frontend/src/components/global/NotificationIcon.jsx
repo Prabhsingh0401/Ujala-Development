@@ -25,14 +25,22 @@ export default function NotificationIcon() {
 
     const fetchCount = async () => {
         try {
-            const [passwordResetRes, distributorReqRes] = await Promise.all([
+            const [passwordResetRes, distributorReqRes, dealerDeletionReqRes] = await Promise.all([
                 axios.get(`${import.meta.env.VITE_API_URL}/api/auth/password-reset-requests`, getConfig()),
-                axios.get(`${import.meta.env.VITE_API_URL}/api/distributor-requests/pending`, getConfig())
+                axios.get(`${import.meta.env.VITE_API_URL}/api/distributor-requests/pending`, getConfig()),
+                axios.get(`${import.meta.env.VITE_API_URL}/api/dealer-deletion-requests`, getConfig())
             ]);
-            setCount(passwordResetRes.data.length + distributorReqRes.data.length);
+            const totalCount = passwordResetRes.data.length + distributorReqRes.data.length + dealerDeletionReqRes.data.length;
+            console.log('Notification counts:', {
+                password: passwordResetRes.data.length,
+                distributor: distributorReqRes.data.length,
+                dealerDeletion: dealerDeletionReqRes.data.length,
+                total: totalCount
+            });
+            setCount(totalCount);
         } catch (error) {
             console.error('Error fetching notification count:', error);
-            setCount(0); // Reset count on error
+            setCount(0);
         }
     };
 

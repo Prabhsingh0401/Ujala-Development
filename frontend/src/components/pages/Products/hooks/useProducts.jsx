@@ -2,15 +2,15 @@ import { useState, useEffect, useCallback, useMemo } from 'react'; // Import use
 import { productService } from '../services/productServices.js';
 import { toast } from 'react-hot-toast';
 
-export const useProducts = (modelFilter) => { // Accept modelFilter as a prop
-  const [allProducts, setAllProducts] = useState([]); // All raw individual products
+export const useProducts = (modelFilter, factoryFilter, searchTerm) => {
+  const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await productService.fetchProducts(); // Fetch all products
-      setAllProducts(response.data); // Store all products
+      const response = await productService.fetchProducts();
+      setAllProducts(response.data);
 
     } catch (error) {
       toast.error('Error fetching products');
@@ -18,7 +18,7 @@ export const useProducts = (modelFilter) => { // Accept modelFilter as a prop
     } finally {
       setLoading(false);
     }
-  }, []); // No modelFilter dependency here, as we fetch all
+  }, []);
 
   useEffect(() => {
     fetchProducts();
@@ -26,13 +26,26 @@ export const useProducts = (modelFilter) => { // Accept modelFilter as a prop
 
   // Frontend filtering logic
   const filteredProducts = useMemo(() => {
-    if (!modelFilter) {
-      return allProducts;
+    let products = allProducts;
+
+    if (searchTerm) {
+        products = products.filter(product =>
+            product.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.model?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.factory?.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
     }
-    return allProducts.filter(product =>
-      product.model?.name.toLowerCase().includes(modelFilter.toLowerCase())
-    );
-  }, [allProducts, modelFilter]);
+
+    if (modelFilter) {
+      products = products.filter(product => product.model?._id === modelFilter);
+    }
+
+    if (factoryFilter) {
+      products = products.filter(product => product.factory?._id === factoryFilter);
+    }
+
+    return products;
+  }, [allProducts, modelFilter, factoryFilter, searchTerm]);
 
   // Group filtered products by orderId and boxNumber
   const groupedProducts = useMemo(() => {

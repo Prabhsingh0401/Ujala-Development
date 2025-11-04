@@ -12,15 +12,17 @@ const dealerSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    location: {
+    address: {
         type: String,
-        required: true,
-        trim: true
+        required: true
     },
-    territory: {
+    state: {
         type: String,
-        required: true,
-        trim: true
+        required: true
+    },
+    city: {
+        type: String,
+        required: true
     },
     contactPerson: {
         type: String,

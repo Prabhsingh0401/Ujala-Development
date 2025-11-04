@@ -54,12 +54,12 @@ export default function ModelsTable({ models, onEdit, onDelete, onStatusChange, 
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <div className="flex items-center space-x-2">
-                                        <button
+                                        {/* <button
                                             onClick={() => onShowDetails(model)}
                                             className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                                         >
                                             <Eye className="w-4 h-4 text-blue-500" />
-                                        </button>
+                                        </button> */}
                                         <button
                                             onClick={() => onEdit(model)}
                                             className="p-2 rounded-full hover:bg-gray-100 transition-colors"

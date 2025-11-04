@@ -23,13 +23,23 @@ export const getOrders = async (req, res) => {
             .populate('factory')
             .populate('category')
             .populate('model');
-        res.status(200).json(orders);
+        
+        const ordersWithUnitCounts = await Promise.all(orders.map(async (order) => {
+            const pendingUnits = await OrderItem.countDocuments({ orderId: order.orderId, status: 'Pending' });
+            const completedUnits = await OrderItem.countDocuments({ orderId: order.orderId, status: 'Completed' });
+            const dispatchedUnits = await OrderItem.countDocuments({ orderId: order.orderId, status: 'Dispatched' });
+            return { ...order.toObject(), pendingUnits, completedUnits, dispatchedUnits };
+        }));
+
+        res.status(200).json(ordersWithUnitCounts);
     } catch (error) {
         res.status(404).json({ message: error.message });
     }
 }
 
 export const createOrder = async (req, res) => {
+    const session = await mongoose.startSession();
+    
     try {
         const { month, year, factory: factoryId, model: modelId, quantity, orderType, ...orderData } = req.body;
         
@@ -50,75 +60,104 @@ export const createOrder = async (req, res) => {
             return res.status(404).json({ message: 'Model not found' });
         }
 
-        const latestOrder = await Order.findOne().sort({ orderId: -1 });
-        let newOrderId;
-        if (latestOrder) {
-            const lastNumber = parseInt(latestOrder.orderId.replace('ORD', ''));
-            newOrderId = `ORD${String(lastNumber + 1).padStart(5, '0')}`;
-        } else {
-            newOrderId = 'ORD00001';
-        }
+        let result;
+        await session.withTransaction(async () => {
+            // Generate unique order ID atomically
+            const latestOrder = await Order.findOne({}, {}, { sort: { orderId: -1 }, session });
+            let newOrderId;
+            if (latestOrder) {
+                const lastNumber = parseInt(latestOrder.orderId.replace('ORD', ''));
+                newOrderId = `ORD${String(lastNumber + 1).padStart(5, '0')}`;
+            } else {
+                newOrderId = 'ORD00001';
+            }
 
-        let factoryCounter = await FactoryCounter.findOne({ factoryId });
-        if (!factoryCounter) {
-            factoryCounter = new FactoryCounter({ factoryId, counter: 10000 });
-        }
+            // Atomically increment factory counter and get new range
+            const factoryCounter = await FactoryCounter.findOneAndUpdate(
+                { factoryId },
+                { $inc: { counter: totalUnits } },
+                { 
+                    new: false, // Return the old value before increment
+                    upsert: true, 
+                    setDefaultsOnInsert: true,
+                    session 
+                }
+            );
 
-        const monthStr = String(month).padStart(2, '0');
-        const yearStr = String(year).slice(-2);
-        const serialBase = `${monthStr}${yearStr}${factory.code.toUpperCase()}${model.code.toUpperCase()}`;
+            const startCounter = (factoryCounter?.counter || 10000) + 1;
+            const endCounter = startCounter + totalUnits - 1;
 
-        const order = {
-            ...orderData,
-            orderId: newOrderId,
-            serialNumber: `${serialBase}${factoryCounter.counter + 1}-${factoryCounter.counter + totalUnits}`,
-            month,
-            year,
-            quantity,
-            factory: factoryId,
-            model: modelId,
-            orderType,
-            unitsPerBox,
-            totalUnits
-        };
-
-        const newOrder = new Order(order);
-        await newOrder.save();
-
-        const orderItems = [];
-        for (let i = 1; i <= totalUnits; i++) {
-            factoryCounter.counter += 1;
-            const itemSerialNumber = `${serialBase}${factoryCounter.counter}`;
-            const boxNumber = Math.ceil(i / unitsPerBox);
+            const monthStr = String(month).padStart(2, '0');
+            const yearStr = String(year).slice(-2);
+            const factoryCode = factory.code.toUpperCase();
             
-            const orderItem = new OrderItem({
+            // Create serial number range for the order (factory-level, not model-specific)
+            const orderSerialBase = `${monthStr}${yearStr}${factoryCode}`;
+            const orderSerialNumber = `${orderSerialBase}${startCounter}-${endCounter}`;
+
+            const order = {
+                ...orderData,
                 orderId: newOrderId,
-                serialNumber: itemSerialNumber,
+                serialNumber: orderSerialNumber,
                 month,
                 year,
-                category: orderData.category,
-                model: modelId,
+                quantity,
                 factory: factoryId,
-                status: 'Pending',
+                model: modelId,
                 orderType,
                 unitsPerBox,
-                boxNumber
-            });
-            
-            orderItems.push(orderItem);
-        }
+                totalUnits
+            };
 
-        await OrderItem.insertMany(orderItems);
-        await factoryCounter.save();
+            const newOrder = new Order(order);
+            await newOrder.save({ session });
+
+            const orderItems = [];
+            for (let i = 0; i < totalUnits; i++) {
+                const currentCounter = startCounter + i;
+                // Individual items use model-specific serial numbers
+                const itemSerialBase = `${monthStr}${yearStr}${factoryCode}${model.code.toUpperCase()}`;
+                const itemSerialNumber = `${itemSerialBase}${currentCounter}`;
+                const boxNumber = Math.ceil((i + 1) / unitsPerBox);
+                
+                const orderItem = new OrderItem({
+                    orderId: newOrderId,
+                    serialNumber: itemSerialNumber,
+                    month,
+                    year,
+                    category: orderData.category,
+                    model: modelId,
+                    factory: factoryId,
+                    status: 'Pending',
+                    orderType,
+                    unitsPerBox,
+                    boxNumber
+                });
+                
+                orderItems.push(orderItem);
+            }
+
+            await OrderItem.insertMany(orderItems, { session });
+            
+            result = await Order.findById(newOrder._id, {}, { session })
+                .populate('factory')
+                .populate('category')
+                .populate('model');
+        });
         
-        const populatedOrder = await Order.findById(newOrder._id)
-            .populate('factory')
-            .populate('category')
-            .populate('model');
-        
-        res.status(201).json(populatedOrder);
+        res.status(201).json(result);
     } catch (error) {
+        if (error.code === 11000) {
+            // Handle duplicate key error specifically
+            const duplicateField = Object.keys(error.keyPattern || {})[0];
+            return res.status(409).json({ 
+                message: `Duplicate ${duplicateField} detected. Please try again.`,
+                error: 'DUPLICATE_KEY_ERROR'
+            });
+        }
         res.status(409).json({ message: error.message });
+    } finally {
+        await session.endSession();
     }
 }
 
@@ -131,82 +170,131 @@ export const updateOrder = async (req, res) => {
             return res.status(400).json({ message: `Invalid order ID format: ${_id}` });
         }
 
-        const existingOrder = await Order.findById(_id).populate('factory').populate('model');
+        const existingOrder = await Order.findById(_id);
         if (!existingOrder) {
             return res.status(404).json({ message: `Order not found with id: ${_id}` });
         }
 
-        const { orderType, totalPumps, factory: factoryId, model: modelId, category: categoryId } = orderData;
+        const quantityChanged = orderData.quantity && orderData.quantity !== existingOrder.quantity;
+        const orderTypeChanged = orderData.orderType && orderData.orderType !== existingOrder.orderType;
 
-        const unitsPerBox = orderType === '2_units' ? 2 : orderType === '3_units' ? 3 : 1;
-        const quantity = Math.ceil(totalPumps / unitsPerBox);
+        if (quantityChanged || orderTypeChanged) {
+            // Major change, need to regenerate items.
 
-        const factory = await Factory.findById(factoryId);
-        if (!factory) {
-            return res.status(404).json({ message: 'Factory not found' });
+            // 1. Delete old items
+            await OrderItem.deleteMany({ orderId: existingOrder.orderId });
+
+            // 2. Recalculate units
+            const quantity = orderData.quantity || existingOrder.quantity;
+            const orderType = orderData.orderType || existingOrder.orderType;
+            const unitsPerBox = orderType === '2_units' ? 2 : orderType === '3_units' ? 3 : 1;
+            const totalUnits = quantity * unitsPerBox;
+
+            orderData.unitsPerBox = unitsPerBox;
+            orderData.totalUnits = totalUnits;
+
+            // 3. Get related data for serial number generation
+            const factoryId = orderData.factory || existingOrder.factory;
+            const modelId = orderData.model || existingOrder.model;
+            const factory = await Factory.findById(factoryId);
+            const model = await Model.findById(modelId);
+            if (!factory || !model) {
+                return res.status(404).json({ message: 'Factory or Model not found' });
+            }
+
+            // 4. Atomically get new counter range
+            const factoryCounter = await FactoryCounter.findOneAndUpdate(
+                { factoryId },
+                { $inc: { counter: totalUnits } },
+                { 
+                    new: false, // Return the old value before increment
+                    upsert: true, 
+                    setDefaultsOnInsert: true
+                }
+            );
+
+            const startCounter = (factoryCounter?.counter || 10000) + 1;
+            const endCounter = startCounter + totalUnits - 1;
+
+            // 5. Generate new serial number range for Order
+            const month = orderData.month || existingOrder.month;
+            const year = orderData.year || existingOrder.year;
+            const monthStr = String(month).padStart(2, '0');
+            const yearStr = String(year).slice(-2);
+            const factoryCode = factory.code.toUpperCase();
+            
+            // Order serial number (factory-level)
+            const orderSerialBase = `${monthStr}${yearStr}${factoryCode}`;
+            orderData.serialNumber = `${orderSerialBase}${startCounter}-${endCounter}`;
+
+            // 6. Create new items
+            const orderItems = [];
+            for (let i = 0; i < totalUnits; i++) {
+                const currentCounter = startCounter + i;
+                // Individual items use model-specific serial numbers
+                const itemSerialBase = `${monthStr}${yearStr}${factoryCode}${model.code.toUpperCase()}`;
+                const itemSerialNumber = `${itemSerialBase}${currentCounter}`;
+                const boxNumber = Math.ceil((i + 1) / unitsPerBox);
+                
+                const orderItem = new OrderItem({
+                    orderId: existingOrder.orderId, // Use existing orderId
+                    serialNumber: itemSerialNumber,
+                    month,
+                    year,
+                    category: orderData.category || existingOrder.category,
+                    model: modelId,
+                    factory: factoryId,
+                    status: 'Pending',
+                    orderType,
+                    unitsPerBox,
+                    boxNumber
+                });
+                orderItems.push(orderItem);
+            }
+
+            // 7. Save items
+            await OrderItem.insertMany(orderItems);
+
+            // 8. Update the Order document
+            const updatedOrder = await Order.findByIdAndUpdate(_id, orderData, { new: true })
+                .populate('factory')
+                .populate('category')
+                .populate('model');
+            
+            res.json(updatedOrder);
+
+        } else {
+            // Simple update, no quantity/type change
+            const updatedOrder = await Order.findByIdAndUpdate(_id, orderData, { new: true })
+                .populate('factory')
+                .populate('category')
+                .populate('model');
+
+            const updateData = {};
+            if (orderData.factory) updateData.factory = orderData.factory;
+            if (orderData.category) updateData.category = orderData.category;
+            if (orderData.model) updateData.model = orderData.model;
+            
+            if (Object.keys(updateData).length > 0) {
+                await OrderItem.updateMany(
+                    { orderId: existingOrder.orderId },
+                    { $set: updateData }
+                );
+            }
+            res.json(updatedOrder);
         }
-
-        const model = await Model.findById(modelId);
-        if (!model) {
-            return res.status(404).json({ message: 'Model not found' });
-        }
-
-        // Delete existing order items
-        await OrderItem.deleteMany({ orderId: existingOrder.orderId });
-
-        let factoryCounter = await FactoryCounter.findOne({ factoryId });
-        if (!factoryCounter) {
-            factoryCounter = new FactoryCounter({ factoryId, counter: 10000 });
-        }
-
-        const monthStr = String(existingOrder.month).padStart(2, '0');
-        const yearStr = String(existingOrder.year).slice(-2);
-        const serialBase = `${monthStr}${yearStr}${factory.code.toUpperCase()}${model.code.toUpperCase()}`;
-
-        const orderItems = [];
-        for (let i = 1; i <= totalPumps; i++) {
-            factoryCounter.counter += 1;
-            const itemSerialNumber = `${serialBase}${factoryCounter.counter}`;
-            const boxNumber = Math.ceil(i / unitsPerBox);
-
-            const orderItem = new OrderItem({
-                orderId: existingOrder.orderId,
-                serialNumber: itemSerialNumber,
-                month: existingOrder.month,
-                year: existingOrder.year,
-                category: categoryId,
-                model: modelId,
-                factory: factoryId,
-                status: 'Pending',
-                orderType,
-                unitsPerBox,
-                boxNumber
-            });
-
-            orderItems.push(orderItem);
-        }
-
-        await OrderItem.insertMany(orderItems);
-        await factoryCounter.save();
-
-        const updatedOrderData = {
-            ...orderData,
-            quantity,
-            totalUnits: totalPumps,
-            unitsPerBox,
-            serialNumber: `${serialBase}${factoryCounter.counter - totalPumps + 1}-${factoryCounter.counter}`
-        };
-
-        const updatedOrder = await Order.findByIdAndUpdate(_id, updatedOrderData, { new: true })
-            .populate('factory')
-            .populate('category')
-            .populate('model');
-
-        res.json(updatedOrder);
     } catch (error) {
+        if (error.code === 11000) {
+            // Handle duplicate key error specifically
+            const duplicateField = Object.keys(error.keyPattern || {})[0];
+            return res.status(409).json({ 
+                message: `Duplicate ${duplicateField} detected. Please try again.`,
+                error: 'DUPLICATE_KEY_ERROR'
+            });
+        }
         res.status(500).json({ message: error.message });
     }
-};
+}
 
 export const deleteOrder = async (req, res) => {
     try {
@@ -421,6 +509,51 @@ export const resetFactoryCounters = async (req, res) => {
         res.json({
             message: 'Factory counters reset successfully',
             results: resetResults
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const cleanupDuplicateSerialNumbers = async (req, res) => {
+    try {
+        // Find duplicate serial numbers in Orders
+        const orderDuplicates = await Order.aggregate([
+            { $group: { _id: '$serialNumber', count: { $sum: 1 }, docs: { $push: '$_id' } } },
+            { $match: { count: { $gt: 1 } } }
+        ]);
+
+        let orderDuplicatesRemoved = 0;
+        // Remove duplicates, keeping the first one
+        for (const duplicate of orderDuplicates) {
+            const [keep, ...remove] = duplicate.docs;
+            if (remove.length > 0) {
+                await Order.deleteMany({ _id: { $in: remove } });
+                orderDuplicatesRemoved += remove.length;
+            }
+        }
+
+        // Find duplicate serial numbers in OrderItems
+        const itemDuplicates = await OrderItem.aggregate([
+            { $group: { _id: '$serialNumber', count: { $sum: 1 }, docs: { $push: '$_id' } } },
+            { $match: { count: { $gt: 1 } } }
+        ]);
+
+        let itemDuplicatesRemoved = 0;
+        // Remove duplicates, keeping the first one
+        for (const duplicate of itemDuplicates) {
+            const [keep, ...remove] = duplicate.docs;
+            if (remove.length > 0) {
+                await OrderItem.deleteMany({ _id: { $in: remove } });
+                itemDuplicatesRemoved += remove.length;
+            }
+        }
+
+        res.json({
+            message: 'Duplicate serial numbers cleaned up successfully',
+            orderDuplicatesRemoved,
+            itemDuplicatesRemoved,
+            totalDuplicatesFound: orderDuplicates.length + itemDuplicates.length
         });
     } catch (error) {
         res.status(500).json({ message: error.message });

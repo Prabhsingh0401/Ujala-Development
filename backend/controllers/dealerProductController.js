@@ -47,4 +47,32 @@ const assignProductToDealerBySerial = asyncHandler(async (req, res) => {
     res.json({ message: 'Product assigned successfully' });
 });
 
-export { assignProductToDealerBySerial };
+const getProductBySerialNumber = asyncHandler(async (req, res) => {
+    const { serialNumber } = req.params;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).populate('dealer');
+    if (!user || !user.dealer) {
+        res.status(401);
+        throw new Error('User is not a dealer');
+    }
+    const dealerId = user.dealer._id;
+
+    const product = await Product.findOne({ serialNumber });
+
+    if (!product) {
+        res.status(404);
+        throw new Error('Product not found');
+    }
+
+    const assignment = await DistributorDealerProduct.findOne({ product: product._id, dealer: dealerId });
+
+    if (!assignment) {
+        res.status(404);
+        throw new Error('Product not assigned to this dealer');
+    }
+
+    res.json(product);
+});
+
+export { assignProductToDealerBySerial, getProductBySerialNumber };

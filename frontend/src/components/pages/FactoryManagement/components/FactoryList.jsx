@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilePenLine, Trash2, Box } from 'lucide-react';
+import { FilePenLine, Trash2, Box, Clock } from 'lucide-react';
 import ListComponent from '../../../global/ListComponent';
 
 export default function FactoryList({ factories, onEdit, onDelete, onViewOrders, loading, selectedFactories, onSelect, onSelectAll }) {
@@ -31,7 +31,8 @@ export default function FactoryList({ factories, onEdit, onDelete, onViewOrders,
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Phone</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Orders</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pending Orders</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
@@ -59,6 +60,15 @@ export default function FactoryList({ factories, onEdit, onDelete, onViewOrders,
                                     >
                                         <Box className="h-4 w-4 mr-1" />
                                         {factory.orderCount || 0} Orders
+                                    </button>
+                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <button
+                                        onClick={() => onViewOrders(factory, 'pending')}
+                                        className="inline-flex items-center px-2.5 py-1.5 border border-yellow-500 text-xs font-medium rounded text-yellow-500 hover:bg-yellow-500 hover:text-white transition-colors"
+                                    >
+                                        <Clock className="h-4 w-4 mr-1" />
+                                        {factory.pendingOrderCount || 0} Pending
                                     </button>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -121,8 +131,11 @@ export default function FactoryList({ factories, onEdit, onDelete, onViewOrders,
                                             className="inline-flex items-center px-2.5 py-1.5 border border-[#4d55f5] text-xs font-medium rounded text-[#4d55f5] hover:bg-[#4d55f5] hover:text-white transition-colors"
                                         >
                                             <Box className="h-4 w-4 mr-1" />
-                                            {factory.orderCount || 0} Orders
+                                            {factory.orderCount || 0} Total Orders
                                         </button>
+                                    </div>
+                                    <div className="col-span-2 mt-2">
+                                        <span className="font-medium">Pending Orders:</span> {factory.pendingOrderCount || 0}
                                     </div>
                                 </div>
                             </div>

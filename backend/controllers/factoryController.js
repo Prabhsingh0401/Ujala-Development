@@ -1,6 +1,8 @@
 import Factory from '../models/Factory.js';
 import Order, { OrderItem } from '../models/Order.js';
 import User from '../models/User.js';
+import Product from '../models/Product.js';
+import Model from '../models/Model.js';
 import bcrypt from 'bcrypt';
 
 export const getFactories = async (req, res) => {
@@ -21,9 +23,11 @@ export const getFactories = async (req, res) => {
         
         const factoriesWithOrders = await Promise.all(factories.map(async (factory) => {
             const orderCount = await OrderItem.countDocuments({ factory: factory._id });
+            const pendingOrderCount = await OrderItem.countDocuments({ factory: factory._id, status: 'Pending' });
             return {
                 ...factory.toObject(),
-                orderCount
+                orderCount,
+                pendingOrderCount
             };
         }));
         
@@ -148,7 +152,24 @@ export const getFactoryOrders = async (req, res) => {
             return res.status(404).json({ message: 'Factory not found' });
         }
 
-        const orderItems = await OrderItem.find({ factory: factory._id })
+        const { startDate, endDate, modelId } = req.query;
+        let filter = { factory: factory._id };
+
+        if (startDate || endDate) {
+            filter.createdAt = {};
+            if (startDate) {
+                filter.createdAt.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                filter.createdAt.$lte = new Date(new Date(endDate).setHours(23, 59, 59, 999)); // End of the day
+            }
+        }
+
+        if (modelId && modelId !== 'all') {
+            filter.model = modelId;
+        }
+
+        const orderItems = await OrderItem.find(filter)
             .populate('category')
             .populate('model')
             .populate('factory')
@@ -172,6 +193,7 @@ export const updateOrderItemStatus = async (req, res) => {
             return res.status(400).json({ message: 'Only completed orders can be dispatched.' });
         }
 
+        const oldStatus = orderItem.status;
         orderItem.status = status;
 
         if (status === 'Pending') {
@@ -180,8 +202,43 @@ export const updateOrderItemStatus = async (req, res) => {
         } else if (status === 'Completed') {
             orderItem.completedAt = new Date();
             orderItem.dispatchedAt = null;
+            // If changing from Dispatched to Completed, remove from inventory
+            if (oldStatus === 'Dispatched' && orderItem.isTransferredToProduct) {
+                await Product.deleteOne({ serialNumber: orderItem.serialNumber });
+                orderItem.isTransferredToProduct = false;
+            }
         } else if (status === 'Dispatched') {
             orderItem.dispatchedAt = new Date();
+            // Auto-transfer to inventory
+            if (!orderItem.isTransferredToProduct) {
+                const latestProduct = await Product.findOne().sort({ productId: -1 });
+                let lastNumber = latestProduct ? parseInt(latestProduct.productId.replace('PROD', '')) : 0;
+                const newProductId = `PROD${String(lastNumber + 1).padStart(5, '0')}`;
+
+                const productData = {
+                    productId: newProductId,
+                    productName: (await Model.findById(orderItem.model)).name,
+                    description: `Product from Order ${orderItem.orderId}`,
+                    serialNumber: orderItem.serialNumber,
+                    month: orderItem.month,
+                    year: orderItem.year,
+                    category: orderItem.category,
+                    model: orderItem.model,
+                    quantity: 1,
+                    orderType: orderItem.orderType,
+                    unitsPerBox: orderItem.unitsPerBox,
+                    factory: orderItem.factory,
+                    orderId: orderItem.orderId,
+                    boxNumber: orderItem.boxNumber,
+                    unit: 'Piece',
+                    price: (await Model.findById(orderItem.model)).specifications?.mrpPrice || 0,
+                    minStockLevel: 10,
+                    status: 'Active'
+                };
+
+                await new Product(productData).save();
+                orderItem.isTransferredToProduct = true;
+            }
         }
 
         await orderItem.save();
@@ -200,32 +257,68 @@ export const bulkUpdateOrderItemStatus = async (req, res) => {
             return res.status(400).json({ message: 'Item IDs are required' });
         }
 
+        const itemsToUpdate = await OrderItem.find({ _id: { $in: itemIds } });
+
         if (status === 'Dispatched') {
-            const itemsToUpdate = await OrderItem.find({ _id: { $in: itemIds } });
-            
             const allAreCompleted = itemsToUpdate.every(item => item.status === 'Completed');
-            
             if (!allAreCompleted) {
                 return res.status(400).json({ message: 'Error: All selected items must be in "Completed" status before they can be dispatched.' });
             }
         }
 
-        let update = { status };
+        // Handle bulk transfers and status changes
+        for (const item of itemsToUpdate) {
+            const oldStatus = item.status;
+            item.status = status;
 
-        if (status === 'Pending') {
-            update.completedAt = null;
-            update.dispatchedAt = null;
-        } else if (status === 'Completed') {
-            update.completedAt = now;
-            update.dispatchedAt = null;
-        } else if (status === 'Dispatched') {
-            update.dispatchedAt = now;
+            if (status === 'Pending') {
+                item.completedAt = null;
+                item.dispatchedAt = null;
+            } else if (status === 'Completed') {
+                item.completedAt = now;
+                item.dispatchedAt = null;
+                // Remove from inventory if changing from Dispatched
+                if (oldStatus === 'Dispatched' && item.isTransferredToProduct) {
+                    await Product.deleteOne({ serialNumber: item.serialNumber });
+                    item.isTransferredToProduct = false;
+                }
+            } else if (status === 'Dispatched') {
+                item.dispatchedAt = now;
+                // Auto-transfer to inventory
+                if (!item.isTransferredToProduct) {
+                    const latestProduct = await Product.findOne().sort({ productId: -1 });
+                    let lastNumber = latestProduct ? parseInt(latestProduct.productId.replace('PROD', '')) : 0;
+                    const newProductId = `PROD${String(lastNumber + 1).padStart(5, '0')}`;
+
+                    const model = await Model.findById(item.model);
+                    const productData = {
+                        productId: newProductId,
+                        productName: model.name,
+                        description: `Product from Order ${item.orderId}`,
+                        serialNumber: item.serialNumber,
+                        month: item.month,
+                        year: item.year,
+                        category: item.category,
+                        model: item.model,
+                        quantity: 1,
+                        orderType: item.orderType,
+                        unitsPerBox: item.unitsPerBox,
+                        factory: item.factory,
+                        orderId: item.orderId,
+                        boxNumber: item.boxNumber,
+                        unit: 'Piece',
+                        price: model.specifications?.mrpPrice || 0,
+                        minStockLevel: 10,
+                        status: 'Active'
+                    };
+
+                    await new Product(productData).save();
+                    item.isTransferredToProduct = true;
+                }
+            }
+
+            await item.save();
         }
-
-        await OrderItem.updateMany(
-            { _id: { $in: itemIds } },
-            { $set: update }
-        );
 
         const updatedItems = await OrderItem.find({ _id: { $in: itemIds } })
             .populate('category')
@@ -238,19 +331,123 @@ export const bulkUpdateOrderItemStatus = async (req, res) => {
 };
 
 export const getFactorySales = async (req, res) => {
+
     try {
+
         const factory = await Factory.findById(req.params.id);
+
         if (!factory) {
+
             return res.status(404).json({ message: 'Factory not found' });
+
         }
 
+
+
         const orderItems = await OrderItem.find({ factory: factory._id, status: 'Dispatched' })
+
             .populate('category')
+
             .populate('model')
+
             .populate('factory')
+
             .sort({ serialNumber: 1 });
+
         res.json(orderItems);
+
     } catch (error) {
+
         res.status(500).json({ message: error.message });
+
     }
+
+};
+
+
+
+export const checkFactoryCodeUniqueness = async (req, res) => {
+
+    try {
+
+        const { code } = req.params;
+
+        const existingFactory = await Factory.findOne({ code });
+
+        res.json({ isUnique: !existingFactory });
+
+    } catch (error) {
+
+        res.status(500).json({ message: error.message });
+
+    }
+
+};
+
+
+
+export const getNewOrdersCount = async (req, res) => {
+
+    try {
+
+        const factory = await Factory.findById(req.params.id);
+
+        if (!factory) {
+
+            return res.status(404).json({ message: 'Factory not found' });
+
+        }
+
+
+
+        const newOrdersCount = await OrderItem.countDocuments({
+
+            factory: factory._id,
+
+            createdAt: { $gt: factory.lastViewedOrdersTimestamp }
+
+        });
+
+
+
+        res.json({ newOrdersCount });
+
+    } catch (error) {
+
+        res.status(500).json({ message: error.message });
+
+    }
+
+};
+
+
+
+export const markOrdersSeen = async (req, res) => {
+
+    try {
+
+        const factory = await Factory.findById(req.params.id);
+
+        if (!factory) {
+
+            return res.status(404).json({ message: 'Factory not found' });
+
+        }
+
+
+
+        factory.lastViewedOrdersTimestamp = Date.now();
+
+        await factory.save();
+
+
+
+        res.json({ message: 'Orders marked as seen', lastViewedOrdersTimestamp: factory.lastViewedOrdersTimestamp });
+
+    } catch (error) {
+
+        res.status(500).json({ message: error.message });
+
+    }
+
 };

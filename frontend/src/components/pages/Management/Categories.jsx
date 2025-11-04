@@ -13,6 +13,7 @@ const Categories = () => {
     const [showModelsModal, setShowModelsModal] = useState(false);
     const [categoryModels, setCategoryModels] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     const handleAddClick = () => {
         setIsEditing(false);
@@ -33,12 +34,14 @@ const Categories = () => {
     };
 
     const handleSaveCategory = async (categoryData) => {
+        setIsSaving(true);
         let success;
         if (isEditing) {
             success = await updateCategory(selectedCategory._id, categoryData);
         } else {
             success = await addCategory(categoryData);
         }
+        setIsSaving(false);
         return success;
     };
 
@@ -194,9 +197,9 @@ const Categories = () => {
                 onSave={handleSaveCategory}
                 category={selectedCategory}
                 isEditing={isEditing}
+                isSaving={isSaving}
             />
 
-            {/* --- 2. RENDER THE MODAL AND PASS STATE AS PROPS --- */}
             <ModelsListModal
                 isOpen={showModelsModal}
                 onClose={() => setShowModelsModal(false)}

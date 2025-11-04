@@ -1,7 +1,8 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '../../../../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { orderService } from '../../Orders/services/orderServices'; // Import orderService to fetch models
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/factories`;
 
@@ -10,12 +11,27 @@ export const useFactoryOrders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [modelFilter, setModelFilter] = useState('all');
+    const [models, setModels] = useState([]); // State to store all available models
 
-    const fetchOrders = async () => {
+    const fetchOrders = useCallback(async () => {
         if (!user || !user.factory) return;
         setLoading(true);
         try {
-            const { data: allOrderItems } = await axios.get(`${API_URL}/${user.factory._id}/orders`);
+            let url = `${API_URL}/${user.factory._id}/orders`;
+            const params = new URLSearchParams();
+
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
+            if (modelFilter !== 'all') params.append('modelId', modelFilter);
+
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+
+            const { data: allOrderItems } = await axios.get(url);
             setOrders(allOrderItems);
             setError(null);
         } catch (err) {
@@ -26,42 +42,41 @@ export const useFactoryOrders = () => {
         } finally {
             setLoading(false);
         }
+    }, [user, startDate, endDate, modelFilter]); // Add filters to dependency array
+
+    const fetchModels = async () => {
+        try {
+            const modelsRes = await orderService.fetchModels();
+            setModels(modelsRes.data.filter(model => model.status === 'Active'));
+        } catch (error) {
+            console.error('Error fetching models:', error);
+            setModels([]);
+        }
     };
 
     useEffect(() => {
         fetchOrders();
-    }, [user]);
+    }, [fetchOrders]); // Depend on fetchOrders
+
+    useEffect(() => {
+        fetchModels();
+    }, []); // Fetch models once on mount
 
     const handleStatusChange = async (itemIds, newStatus) => {
         if (!newStatus) return;
-
-        let itemsToDispatch = [];
-        let itemsNotCompleted = [];
-
+        
         if (newStatus === 'Dispatched') {
-            const selectedOrderItems = orders.filter(o => itemIds.includes(o._id));
-            itemsToDispatch = selectedOrderItems.filter(item => item.status === 'Completed');
-            itemsNotCompleted = selectedOrderItems.filter(item => item.status !== 'Completed');
-
-            if (itemsToDispatch.length === 0) {
-                toast.error('No selected items are in "Completed" status to be dispatched.');
+            const itemsToUpdate = orders.filter(o => itemIds.includes(o._id));
+            const allAreCompleted = itemsToUpdate.every(item => item.status === 'Completed');
+            if (!allAreCompleted) {
+                toast.error('Error: Only "Completed" items can be dispatched.');
                 return;
             }
-        } else {
-            itemsToDispatch = orders.filter(o => itemIds.includes(o._id));
         }
 
         try {
-            if (itemsToDispatch.length > 0) {
-                const dispatchableItemIds = itemsToDispatch.map(item => item._id);
-                await axios.patch(`${API_URL}/${user.factory._id}/orders/bulk-status`, { itemIds: dispatchableItemIds, status: newStatus });
-                toast.success(`Status updated to ${newStatus} for ${dispatchableItemIds.length} items.`);
-            }
-
-            if (itemsNotCompleted.length > 0) {
-                const serialNumbersNotDispatched = itemsNotCompleted.map(item => item.serialNumber).join(', ');
-                toast.warn(`Skipped ${itemsNotCompleted.length} items not in "Completed" status: ${serialNumbersNotDispatched}`);
-            }
+            await axios.patch(`${API_URL}/${user.factory._id}/orders/bulk-status`, { itemIds, status: newStatus });
+            toast.success(`Status updated to ${newStatus}`);
             fetchOrders(); // Re-fetch to get the latest data
         } catch (err) {
             toast.error(err.response?.data?.message || 'Error updating status');
@@ -107,6 +122,12 @@ export const useFactoryOrders = () => {
         }
     };
 
+    const clearFilters = () => {
+        setStartDate('');
+        setEndDate('');
+        setModelFilter('all');
+    };
+
     return {
         orders,
         loading,
@@ -114,5 +135,13 @@ export const useFactoryOrders = () => {
         fetchOrders,
         handleStatusChange,
         downloadMultiplePDFs,
+        startDate,
+        setStartDate,
+        endDate,
+        setEndDate,
+        modelFilter,
+        setModelFilter,
+        models,
+        clearFilters,
     };
 };

@@ -14,6 +14,10 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
     const [isDownloading, setIsDownloading] = useState(false);
     const [startSerialNumber, setStartSerialNumber] = useState('');
     const [endSerialNumber, setEndSerialNumber] = useState('');
+    // Range validation modal state
+    const [rangeErrorModalOpen, setRangeErrorModalOpen] = useState(false);
+    const [rangeErrorMessage, setRangeErrorMessage] = useState('');
+    const [availableRange, setAvailableRange] = useState('');
 
     useEffect(() => {
         if (isOpen) {
@@ -113,6 +117,22 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
             toast.error('Invalid serial number format or range.');
             return;
         }
+        // compute available counters from filteredOrders
+        const counters = filteredOrders.map(i => getSerialCounter(i.serialNumber)).filter(n => n > 0);
+        if (counters.length > 0) {
+            const minCounter = Math.min(...counters);
+            const maxCounter = Math.max(...counters);
+            if (startCounter < minCounter || endCounter > maxCounter) {
+                // compute displayable serials for min/max
+                const sorted = filteredOrders.slice().sort((a, b) => getSerialCounter(a.serialNumber) - getSerialCounter(b.serialNumber));
+                const minSerial = sorted[0]?.serialNumber || '';
+                const maxSerial = sorted[sorted.length - 1]?.serialNumber || '';
+                setRangeErrorMessage('Selected range exceeds available range');
+                setAvailableRange(`${minSerial} - ${maxSerial}`);
+                setRangeErrorModalOpen(true);
+                return;
+            }
+        }
         const range = filteredOrders.filter(item => {
             const itemCounter = getSerialCounter(item.serialNumber);
             return itemCounter >= startCounter && itemCounter <= endCounter;
@@ -122,7 +142,7 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
             return;
         }
         const itemIds = range.map(item => item._id);
-        setSelectedItems(prev => [...new Set([...prev, ...itemIds])]);
+        setSelectedItems(itemIds); // Changed to replace existing selection
     };
 
     const handleUnselectRange = () => {
@@ -136,6 +156,21 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
             toast.error('Invalid serial number format or range.');
             return;
         }
+        // compute available counters from filteredOrders
+        const counters = filteredOrders.map(i => getSerialCounter(i.serialNumber)).filter(n => n > 0);
+        if (counters.length > 0) {
+            const minCounter = Math.min(...counters);
+            const maxCounter = Math.max(...counters);
+            if (startCounter < minCounter || endCounter > maxCounter) {
+                const sorted = filteredOrders.slice().sort((a, b) => getSerialCounter(a.serialNumber) - getSerialCounter(b.serialNumber));
+                const minSerial = sorted[0]?.serialNumber || '';
+                const maxSerial = sorted[sorted.length - 1]?.serialNumber || '';
+                setRangeErrorMessage('Selected range exceeds available range');
+                setAvailableRange(`${minSerial} - ${maxSerial}`);
+                setRangeErrorModalOpen(true);
+                return;
+            }
+        }
         const rangeItemIds = filteredOrders
             .filter(item => {
                 const itemCounter = getSerialCounter(item.serialNumber);
@@ -148,6 +183,8 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
         }
         setSelectedItems(prev => prev.filter(id => !rangeItemIds.includes(id)));
     };
+
+    // small inline modal JSX for range error (rendered below inside main overlay)
     
     const downloadPDF = (boxKey, download = false) => {
         const url = `${import.meta.env.VITE_API_URL}/api/pdf/stickers/${boxKey}${download ? '?download=true' : ''}`;
@@ -216,10 +253,11 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
                                 <input type="checkbox" checked={selectedItems.length === filteredOrders.length && filteredOrders.length > 0} onChange={handleSelectAll} className="h-4 w-4 text-blue-600 focus:ring-2 focus:ring-blue-600 border-gray-300 rounded"/>
                                 <label className="text-sm font-medium text-gray-700">Select All ({filteredOrders.length})</label>
                                 <div className="flex items-center gap-2 ml-auto">
-                                    <input type="text" placeholder="Start Serial" value={startSerialNumber} onChange={(e) => setStartSerialNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"/>
-                                    <input type="text" placeholder="End Serial" value={endSerialNumber} onChange={(e) => setEndSerialNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"/>
-                                    <button onClick={handleSelectRange} className="p-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500" title="Select Range"><BoxSelect className="h-5 w-5" /></button>
-                                    <button onClick={handleUnselectRange} className="p-2 bg-red-400 text-white rounded-lg hover:bg-red-500" title="Unselect Range"><MinusSquare className="h-5 w-5" /></button>
+                                    <input type="text" placeholder="Start Serial" value={startSerialNumber} onChange={(e) => setStartSerialNumber(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"/>
+                                    <input type="text" placeholder="End Serial" value={endSerialNumber} onChange={(e) => setEndSerialNumber(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 bg-white"/>
+                                    <button onClick={handleSelectRange} className="px-3 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 text-sm" title="Select Range">Select Range</button>
+                                    <button onClick={handleUnselectRange} className="px-3 py-2 bg-red-400 text-white rounded-lg hover:bg-red-500 text-sm" title="Unselect Range">Unselect Range</button>
+                                    <button onClick={() => setSelectedItems([])} className="px-3 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm" title="Clear Selection">Clear</button>
                                 </div>
                             </div>
                             <div className="bg-white border border-gray-200 rounded-lg overflow-auto">
@@ -281,8 +319,10 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
                                 }}
                             >
                                 <option value="10">10</option>
-                                <option value="20">20</option>
-                                <option value="30">30</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
                             </select>
                         </div>
                         <div className="text-sm text-gray-700">Page {currentPage} of {totalPages}</div>
@@ -290,6 +330,23 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
                     </div>
                 </div>
             </div>
+            {rangeErrorModalOpen && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/40" onClick={() => setRangeErrorModalOpen(false)}></div>
+                    <div className="bg-white rounded-lg shadow-lg z-70 w-full max-w-md p-6 mx-4">
+                        <div className="flex items-start justify-between">
+                            <h4 className="text-lg font-semibold">Range Error</h4>
+                            <button onClick={() => setRangeErrorModalOpen(false)} className="text-gray-500 hover:text-gray-700"><X className="h-5 w-5" /></button>
+                        </div>
+                        <div className="mt-4 text-sm text-gray-700">
+                            <p>{rangeErrorMessage} <span className="font-medium">({availableRange})</span></p>
+                        </div>
+                        <div className="mt-6 flex justify-end">
+                            <button onClick={() => setRangeErrorModalOpen(false)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">OK</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

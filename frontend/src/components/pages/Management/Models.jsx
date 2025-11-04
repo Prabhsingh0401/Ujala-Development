@@ -14,6 +14,7 @@ const Models = () => {
     const [showModelDetailsModal, setShowModelDetailsModal] = useState(false);
     const [selectedModelForView, setSelectedModelForView] = useState(null);
     const [selectedModels, setSelectedModels] = useState([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     const handleAddClick = () => {
         setIsEditing(false);
@@ -34,12 +35,14 @@ const Models = () => {
     };
 
     const handleSaveModel = async (modelData) => {
+        setIsSaving(true);
         let success;
         if (isEditing) {
             success = await updateModel(selectedModel._id, modelData);
         } else {
             success = await addModel(modelData);
         }
+        setIsSaving(false);
         return success;
     };
 
@@ -137,6 +140,7 @@ const Models = () => {
                 model={selectedModel}
                 isEditing={isEditing}
                 categories={categories}
+                isSaving={isSaving}
             />
         </div>
     );

@@ -12,8 +12,9 @@ export const getDealers = async (req, res) => {
             matchQuery = {
                 $or: [
                     { name: { $regex: search, $options: 'i' } },
-                    { location: { $regex: search, $options: 'i' } },
-                    { territory: { $regex: search, $options: 'i' } }
+                    { address: { $regex: search, $options: 'i' } },
+                    { state: { $regex: search, $options: 'i' } },
+                    { city: { $regex: search, $options: 'i' } }
                 ]
             };
         }
@@ -35,7 +36,8 @@ export const getDealers = async (req, res) => {
             },
             {
                 $project: {
-                    assignedProducts: 0
+                    assignedProducts: 0,
+                    password: 0
                 }
             },
             {
@@ -109,7 +111,9 @@ export const createDealer = async (req, res) => {
             );
         }
 
-        res.status(201).json(createdDealer);
+        const dealerResponse = createdDealer.toObject();
+        delete dealerResponse.password;
+        res.status(201).json(dealerResponse);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
@@ -122,11 +126,42 @@ export const updateDealer = async (req, res) => {
             return res.status(404).json({ message: 'Dealer not found' });
         }
 
+        // Exclude username and password from update data
+        const { username, password, ...updateData } = req.body;
+        
+        // Only update username if it's provided and different
+        if (username && username !== dealer.username) {
+            // Check if new username already exists
+            const userExists = await User.findOne({ username, _id: { $ne: dealer._id } });
+            if (userExists) {
+                return res.status(400).json({ message: 'Username already taken' });
+            }
+            updateData.username = username;
+            
+            // Update username in User model as well
+            await User.findOneAndUpdate(
+                { dealer: dealer._id },
+                { username: username }
+            );
+        }
+        
+        // Only update password if it's provided
+        if (password) {
+            updateData.password = password;
+            
+            // Update password in User model as well
+            const hashedPassword = await bcrypt.hash(password, 10);
+            await User.findOneAndUpdate(
+                { dealer: dealer._id },
+                { password: hashedPassword }
+            );
+        }
+
         const updatedDealer = await Dealer.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            updateData,
             { new: true, runValidators: true }
-        );
+        ).select('-password');
 
         // If the distributor is changed, update the old and new distributors
         if (req.body.distributor && dealer.distributor?.toString() !== req.body.distributor) {
@@ -168,6 +203,46 @@ export const deleteDealer = async (req, res) => {
 
         await dealer.deleteOne();
         res.json({ message: 'Dealer removed successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const deleteMultipleDealers = async (req, res) => {
+    try {
+        const { dealerIds } = req.body;
+        if (!dealerIds || dealerIds.length === 0) {
+            return res.status(400).json({ message: 'No dealer IDs provided' });
+        }
+
+        // Find all dealers to be deleted to get their distributor IDs
+        const dealers = await Dealer.find({ _id: { $in: dealerIds } });
+        if (dealers.length === 0) {
+            return res.status(404).json({ message: 'No dealers found' });
+        }
+
+        // Group dealers by distributor
+        const distributorMap = dealers.reduce((map, dealer) => {
+            if (dealer.distributor) {
+                const distributorId = dealer.distributor.toString();
+                if (!map[distributorId]) {
+                    map[distributorId] = [];
+                }
+                map[distributorId].push(dealer._id);
+            }
+            return map;
+        }, {});
+
+        // Remove dealers from their respective distributors
+        for (const distributorId in distributorMap) {
+            await Distributor.findByIdAndUpdate(
+                distributorId,
+                { $pull: { dealers: { $in: distributorMap[distributorId] } } }
+            );
+        }
+
+        await Dealer.deleteMany({ _id: { $in: dealerIds } });
+        res.json({ message: 'Dealers deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

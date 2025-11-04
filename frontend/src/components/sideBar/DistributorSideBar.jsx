@@ -1,10 +1,12 @@
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LogOut,
   ShoppingCart,
   Users,
   LayoutDashboard,
+  ChevronDown,
+  Box
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 
@@ -16,9 +18,9 @@ const distributorSidebarItems = [
         color: 'blue'
     },
     {
-        title: 'Products',
+        title: 'Inventory',
         path: '/distributor/products',
-        icon: ShoppingCart,
+        icon: Box,
         color: 'yellow'
     },
     {
@@ -26,6 +28,21 @@ const distributorSidebarItems = [
         path: '/distributor/dealers',
         icon: Users,
         color: 'purple'
+    },
+    {
+        title: 'Sales',
+        icon: ShoppingCart,
+        color: 'green',
+        children: [
+            {
+                title: 'Dealer Sales',
+                path: '/distributor/dealer-sales'
+            },
+            {
+                title: 'Customer Sales',
+                path: '/distributor/customer-sales'
+            }
+        ]
     }
 ];
 
@@ -33,8 +50,10 @@ export function DistributorSideBar({ sidebarOpen, toggleSidebar }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useContext(AuthContext);
+    const [salesOpen, setSalesOpen] = useState(false);
 
     const isActive = (path) => location.pathname === path;
+    const isChildActive = (children) => children.some(child => isActive(child.path));
 
     const handleLogout = () => {
         logout();
@@ -52,7 +71,7 @@ export function DistributorSideBar({ sidebarOpen, toggleSidebar }) {
                 <div className="h-full flex flex-col px-4 pb-4 overflow-y-auto" style={{ background: 'var(--sidebar-bg)' }}>
                     {/* Sidebar Header */}
                     <div
-                        className={`flex items-center h-20 border-b border-gray-300/40 ${
+                        className={`flex items-center h-20 ${
                             sidebarOpen ? 'justify-between px-2' : 'justify-center'
                         }`}
                     >
@@ -88,26 +107,59 @@ export function DistributorSideBar({ sidebarOpen, toggleSidebar }) {
 
                     {/* Sidebar Items */}
                     {sidebarOpen ? (
-                        <ul className="mt-4 space-y-2 font-bold">
+                        <ul className="mt-1 space-y-1 font-bold">
                             {distributorSidebarItems.map((item, index) => {
                                 const Icon = item.icon;
                                 return (
                                     <li key={index}>
-                                        <Link
-                                            to={item.path}
-                                            className={`flex items-center py-2 px-3 rounded-xl group transition-all duration-200  ${isActive(item.path) ? 'bg-white' : ''}`}
-                                        >
-                                            <div
-                                                className={`p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 ${isActive(item.path) ? 'bg-white' : 'bg-white/10'}`}
+                                        {item.children ? (
+                                            <>
+                                                <button
+                                                    onClick={() => setSalesOpen(!salesOpen)}
+                                                    className={`flex items-center w-full py-1 px-3 rounded-xl group transition-all duration-200 font-bold ${isChildActive(item.children) ? 'bg-white sidebar-pill' : ''}`}
+                                                >
+                                                    <div className={`p-2 rounded-full transition-colors duration-200 flex-shrink-0 ${isChildActive(item.children) ? 'bg-[var(--primary-purple)]' : 'bg-white/10'}`}>
+                                                        <Icon
+                                                            className={`w-5 h-5 ${isChildActive(item.children) ? 'text-white' : 'text-white/90'}`}
+                                                        />
+                                                    </div>
+                                                    <span className={`flex-1 ml-4 text-left font-bold ${isChildActive(item.children) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}>
+                                                        {item.title}
+                                                    </span>
+                                                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${salesOpen ? 'rotate-180' : ''}`} />
+                                                </button>
+                                                {salesOpen && (
+                                                    <ul className="pl-11 mt-2 space-y-1">
+                                                        {item.children.map((child, childIndex) => (
+                                                            <li key={childIndex}>
+                                                                <Link
+                                                                    to={child.path}
+                                                                    className={`block py-1 px-3 rounded-md text-sm ${isActive(child.path) ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10'}`}
+                                                                >
+                                                                    • {child.title}
+                                                                </Link>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <Link
+                                                to={item.path}
+                                                className={`flex items-center py-1 px-3 rounded-xl group transition-all duration-200  ${isActive(item.path) ? 'bg-white' : ''}`}
                                             >
-                                                <Icon
-                                                    className={`w-5 h-5 ${isActive(item.path) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}
-                                                />
-                                            </div>
-                                            {sidebarOpen && (
-                                                <span className={`ml-4 font-bold ${isActive(item.path) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}>{item.title}</span>
-                                            )}
-                                        </Link>
+                                                <div
+                                                    className={`p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 ${isActive(item.path) ? 'bg-white' : 'bg-white/10'}`}
+                                                >
+                                                    <Icon
+                                                        className={`w-5 h-5 ${isActive(item.path) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}
+                                                    />
+                                                </div>
+                                                {sidebarOpen && (
+                                                    <span className={`ml-4 font-bold ${isActive(item.path) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}>{item.title}</span>
+                                                )}
+                                            </Link>
+                                        )}
                                     </li>
                                 );
                             })}
@@ -120,8 +172,8 @@ export function DistributorSideBar({ sidebarOpen, toggleSidebar }) {
                                 return (
                                     <li key={index}>
                                         <Link to={item.path} className="block">
-                                            <div className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${active ? 'bg-white sidebar-pill' : 'bg-white/10'}`}>
-                                                <Icon className={`${active ? 'text-[var(--sidebar-bg)]' : 'text-white/90'} w-5 h-5`} />
+                                            <div className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${active ? 'bg-white sidebar-pill' : 'bg-white/10'}`}>
+                                                <Icon className={`${active ? 'text-[var(--sidebar-bg)]' : 'text-white/90'} w-4 h-4`} />
                                             </div>
                                         </Link>
                                     </li>
@@ -142,8 +194,8 @@ export function DistributorSideBar({ sidebarOpen, toggleSidebar }) {
                                 </button>
                             ) : (
                                 <div className="flex items-center justify-center">
-                                    <button onClick={handleLogout} className="w-12 h-12 flex items-center justify-center rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95">
-                                        <LogOut className="w-5 h-5 text-white/90" />
+                                    <button onClick={handleLogout} className="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95">
+                                        <LogOut className="w-4 h-4 text-white/90" />
                                     </button>
                                 </div>
                             )}

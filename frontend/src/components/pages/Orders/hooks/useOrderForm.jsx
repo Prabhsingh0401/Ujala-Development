@@ -19,11 +19,15 @@ export const useOrderForm = (isEdit = false, editOrder = null, models = []) => {
 
   useEffect(() => {
     if (isEdit && editOrder) {
+      const totalPumps = editOrder.quantity * 
+        (editOrder.orderType === '2_units' ? 2 : 
+         editOrder.orderType === '3_units' ? 3 : 1);
+      
       setFormData({
         category: editOrder.category?._id || '',
         model: editOrder.model?._id || '',
         quantity: editOrder.quantity,
-        totalPumps: editOrder.totalPumps, // Directly use totalPumps from the order
+        totalPumps: totalPumps,
         factory: editOrder.factory?._id || '',
         month: editOrder.month || new Date().getMonth() + 1,
         year: editOrder.year || new Date().getFullYear(),

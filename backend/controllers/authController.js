@@ -1,12 +1,15 @@
 import User from '../models/User.js';
+import UserRole from '../models/UserRole.js';
 import Factory from '../models/Factory.js';
 import PasswordResetRequest from '../models/PasswordResetRequest.js';
+import Customer from '../models/Customer.js';
+import Sale from '../models/Sale.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken'; // Import jsonwebtoken
 
 // Helper function to generate JWT
-const generateToken = (id, role) => {
-    return jwt.sign({ id, role }, process.env.JWT_SECRET, {
+const generateToken = (id, role, distributor, factory, dealer) => {
+    return jwt.sign({ id, role, distributor, factory, dealer }, process.env.JWT_SECRET, {
         expiresIn: '2h',
     });
 };
@@ -43,7 +46,22 @@ export const login = async (req, res) => {
         }
 
         if (!user || !await bcrypt.compare(password, user.password)) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            // If not found in User collection, try UserRole collection (members created via admin)
+            const member = await UserRole.findOne({ username, isActive: true });
+            if (!member || !await bcrypt.compare(password, member.password)) {
+                return res.status(401).json({ message: 'Invalid credentials' });
+            }
+
+            const memberData = {
+                id: member._id,
+                username: member.username,
+                role: 'member',
+                accessControl: member.accessControl,
+                privileges: member.accessControl, // for frontend compatibility
+                token: generateToken(member._id, 'member')
+            };
+
+            return res.json({ user: memberData });
         }
 
         const userData = {
@@ -53,7 +71,7 @@ export const login = async (req, res) => {
             factory: user.factory,
             distributor: user.distributor,
             dealer: user.dealer,
-            token: generateToken(user._id, user.role), // Generate and include token with role
+            token: generateToken(user._id, user.role, user.distributor?._id, user.factory?._id, user.dealer?._id), // Generate and include token with role
         };
 
         res.json({ user: userData });
@@ -217,6 +235,87 @@ export const resetPassword = async (req, res) => {
         res.json({ message: 'Password reset successfully' });
     } catch (error) {
         console.error('Password reset error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const declinePasswordResetRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await PasswordResetRequest.findByIdAndDelete(id);
+        res.json({ message: 'Password reset request declined' });
+    } catch (error) {
+        console.error('Decline password reset request error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Customer registration
+export const registerCustomer = async (req, res) => {
+    try {
+        const { name, phone, email, address, password } = req.body;
+
+        if (!name || !phone || !password) {
+            return res.status(400).json({ message: 'Name, phone and password are required' });
+        }
+
+        const existing = await Customer.findOne({ phone });
+        if (existing) {
+            return res.status(400).json({ message: 'Customer with this phone already exists' });
+        }
+
+        const hashed = await bcrypt.hash(password, 10);
+        const customer = await Customer.create({ name, phone, email, address, password: hashed });
+
+        const userData = {
+            id: customer._id,
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+            role: 'customer',
+            token: generateToken(customer._id, 'customer')
+        };
+
+        // Link any existing sales that were recorded with this phone to the newly created customer
+        try {
+            await Sale.updateMany({ customerPhone: phone }, { customer: customer._id });
+        } catch (linkErr) {
+            console.error('Error linking existing sales to customer:', linkErr);
+        }
+
+        res.status(201).json({ user: userData });
+    } catch (error) {
+        console.error('Register customer error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Customer login
+export const loginCustomer = async (req, res) => {
+    try {
+        const { phone, password } = req.body;
+
+        if (!phone || !password) {
+            return res.status(400).json({ message: 'Phone and password are required' });
+        }
+
+        const customer = await Customer.findOne({ phone });
+        if (!customer || !await bcrypt.compare(password, customer.password)) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        const userData = {
+            id: customer._id,
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+            role: 'customer',
+            token: generateToken(customer._id, 'customer')
+        };
+
+        res.json({ user: userData });
+    } catch (error) {
+        console.error('Customer login error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };

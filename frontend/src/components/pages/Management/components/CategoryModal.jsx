@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
-export default function CategoryModal({ isOpen, onClose, onSave, category, isEditing }) {
+export default function CategoryModal({ isOpen, onClose, onSave, category, isEditing, isSaving }) {
     const [formData, setFormData] = useState({ name: '', status: 'Active' });
-    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -17,9 +16,7 @@ export default function CategoryModal({ isOpen, onClose, onSave, category, isEdi
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
         const success = await onSave(formData);
-        setLoading(false);
         if (success) {
             onClose();
         }
@@ -64,8 +61,8 @@ export default function CategoryModal({ isOpen, onClose, onSave, category, isEdi
                         <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
                             Cancel
                         </button>
-                        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
-                            {loading ? 'Saving...' : isEditing ? 'Update' : 'Create'}
+                        <button type="submit" disabled={isSaving} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                            {isSaving ? 'Saving...' : isEditing ? 'Update' : 'Create'}
                         </button>
                     </div>
                 </form>

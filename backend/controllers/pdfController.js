@@ -249,14 +249,12 @@ const generatePDFForBox = async (boxKey) => {
                 type: 'individual', items: [orderItems[i]], qrCodes: [boxQrCodes[i], boxQrCodes[i]], model: orderItems[i].model, startX: pageMargin, startY: currentY
             });
         }
-    } else { // It's a single-unit box
-        for (let i = 0; i < 2; i++) {
-            currentY = checkNewPage(currentY);
-            await generateBoxSticker(doc, {
-                type: 'individual', items: [orderItems[0]], qrCodes: [boxQrCodes[0], boxQrCodes[0]], model, startX: pageMargin, startY: currentY
-            });
-            currentY += stickerHeight + verticalSpacing;
-        }
+    } else { // It's a single-unit box -> generate only one individual sticker (1N)
+        currentY = checkNewPage(currentY);
+        await generateBoxSticker(doc, {
+            type: 'individual', items: [orderItems[0]], qrCodes: [boxQrCodes[0], boxQrCodes[0]], model, startX: pageMargin, startY: currentY
+        });
+        currentY += stickerHeight + verticalSpacing;
     }
     doc.end();
     return promise;
@@ -312,14 +310,13 @@ const generateCombinedPDF = async (orderItems) => {
                     type: 'individual', items: [itemsInBox[i]], qrCodes: [boxQrCodes[i], boxQrCodes[i]], model: itemsInBox[i].model, startX: pageMargin, startY: currentY
                 });
             }
-        } else { // It's a single-unit box
-            for (let i = 0; i < 2; i++) {
-                currentY += stickerHeight + verticalSpacing;
-                currentY = checkNewPage(currentY);
-                await generateBoxSticker(doc, {
-                    type: 'individual', items: [itemsInBox[0]], qrCodes: [boxQrCodes[0], boxQrCodes[0]], model, startX: pageMargin, startY: currentY
-                });
-            }
+        } else { // It's a single-unit box -> generate only one individual sticker (1N)
+            currentY = checkNewPage(currentY);
+            await generateBoxSticker(doc, {
+                type: 'individual', items: [itemsInBox[0]], qrCodes: [boxQrCodes[0], boxQrCodes[0]], model, startX: pageMargin, startY: currentY
+            });
+            // advance Y to reserve space before next box (kept for consistent separation between boxes)
+            currentY += stickerHeight + verticalSpacing;
         }
         // Add a larger space between different boxes in the same PDF
         currentY += stickerHeight + verticalSpacing;

@@ -13,7 +13,8 @@ export function OrderModal({
   onUpdateOrderType,
   onUpdateTotalPumps,
   onSubmit,
-  onClose
+  onClose,
+  isAdding
 }) {
   if (!isOpen) return null;
 
@@ -191,9 +192,14 @@ export function OrderModal({
           <div className="mt-6">
             <button
               type="submit"
-              className="w-full px-6 py-2.5 bg-[#8B8FFF] text-white rounded-xl hover:bg-[#7B7FFF] transition-colors font-medium cursor-pointer"
+              disabled={isAdding}
+              className="w-full px-6 py-2.5 bg-[#8B8FFF] text-white rounded-xl hover:bg-[#7B7FFF] transition-colors font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isEdit ? 'Update Order' : 'Add Order'}
+              {isAdding ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mx-auto"></div>
+              ) : (
+                isEdit ? 'Update Order' : 'Add Order'
+              )}
             </button>
           </div>
         </form>

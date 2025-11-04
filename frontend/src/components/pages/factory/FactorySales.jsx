@@ -1,8 +1,10 @@
 import { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 import { Search, Download, Eye, QrCode } from 'lucide-react';
-import ErrorBoundary from '../global/ErrorBoundary';
-import QRScannerModal from '../global/QRScannerModal';
+import ErrorBoundary from '../../global/ErrorBoundary';
+import QRScannerModal from '../../global/QRScannerModal';
+import ViewSaleModal from './components/ViewSaleModal';
+import { generateSerialNumberRanges } from './utils';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
@@ -14,8 +16,15 @@ function FactorySales() {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [showScanner, setShowScanner] = useState(false);
+    const [selectedSale, setSelectedSale] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const itemsPerPage = 10;
     const { user } = useContext(AuthContext);
+
+    const handleViewDetails = (saleData) => {
+        setSelectedSale(saleData);
+        setIsModalOpen(true);
+    };
 
     useEffect(() => {
         if (user && user.factory) {
@@ -62,11 +71,10 @@ function FactorySales() {
     // Group filtered orders by box
     const groupedOrders = Object.entries(
         filteredOrders.reduce((groups, item) => {
-            const boxKey = `${item.orderId}-Box-${item.boxNumber || 'N/A'}`;
-            if (!groups[boxKey]) {
-                groups[boxKey] = {
-                    boxNumber: item.boxNumber,
-                    orderId: item.orderId,
+            const orderId = item.orderId;
+            if (!groups[orderId]) {
+                groups[orderId] = {
+                    orderId: orderId,
                     category: item.category,
                     model: item.model,
                     orderType: item.orderType,
@@ -75,10 +83,10 @@ function FactorySales() {
                     items: []
                 };
             }
-            groups[boxKey].items.push(item);
+            groups[orderId].items.push(item);
             return groups;
         }, {})
-    );
+    ).sort(([, a], [, b]) => new Date(b.dispatchedDate) - new Date(a.dispatchedDate));
 
     // Pagination
     const totalItems = groupedOrders.length;
@@ -103,66 +111,39 @@ function FactorySales() {
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Box</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Date</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dispatched Date</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {paginatedOrders.map(([boxKey, boxData]) => (
-                                <tr key={boxKey} className="hover:bg-gray-50">
+                            {paginatedOrders.map(([orderId, orderData]) => (
+                                <tr key={orderId} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-blue-600">
-                                        {boxData.orderId}
+                                        {orderData.orderId}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                        Box {boxData.boxNumber}
+                                        {orderData.model?.name}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        <div className="space-y-1">
-                                            {boxData.items.map((it, idx) => (
-                                                <div key={it._id || idx}>{it?.serialNumber}</div>
-                                            ))}
-                                        </div>
+                                        {generateSerialNumberRanges(orderData.items)}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                        {boxData.category?.name}
+                                        {orderData.completedDate ? new Date(orderData.completedDate).toLocaleDateString() : '-'}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                        {boxData.model?.name}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap">
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                            boxData.orderType === '2_units' ? 'bg-blue-100 text-blue-800' : boxData.orderType === '3_units' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
-                                        }`}>
-                                            {boxData.orderType === '2_units' ? '2 Units' : boxData.orderType === '3_units' ? '3 Units' : '1 Unit'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                        {boxData.completedDate ? new Date(boxData.completedDate).toLocaleDateString() : '-'}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                        {boxData.dispatchedDate ? new Date(boxData.dispatchedDate).toLocaleDateString() : '-'}
+                                        {orderData.dispatchedDate ? new Date(orderData.dispatchedDate).toLocaleDateString() : '-'}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap">
                                         <div className="flex items-center space-x-1">
                                             <button
-                                                onClick={() => downloadPDF(boxKey, false)}
+                                                onClick={() => handleViewDetails(orderData)}
                                                 className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                                             >
                                                 <Eye className="h-3 w-3" />
                                                 View
-                                            </button>
-                                            <button
-                                                onClick={() => downloadPDF(boxKey, true)}
-                                                className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors flex items-center gap-1"
-                                            >
-                                                <Download className="h-3 w-3" />
-                                                Download
                                             </button>
                                         </div>
                                     </td>
@@ -176,7 +157,19 @@ function FactorySales() {
                 {Math.ceil(totalItems / itemsPerPage) > 1 && (
                     <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
                         <div className="text-sm text-gray-700">
-                            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} sales
+                            Rows per page:
+                            <select
+                                className="ml-2 border border-gray-300 rounded px-2 py-1"
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="30">30</option>
+                            </select>
                         </div>
                         <div className="flex items-center space-x-2">
                             <button
@@ -212,9 +205,9 @@ function FactorySales() {
 
     return (
         <div className="p-4">
-            <div className="p-6">
+            <div className="">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Sales</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Sales</h1>
                     <p className="text-gray-600">Track all completed orders and their details</p>
                 </div>
 
@@ -222,6 +215,13 @@ function FactorySales() {
                     isOpen={showScanner} 
                     onClose={() => setShowScanner(false)}
                     onProductUpdated={fetchDispatchedOrders}
+                    currentFactoryId={user?.factory?._id}
+                />
+
+                <ViewSaleModal 
+                    isOpen={isModalOpen} 
+                    onClose={() => setIsModalOpen(false)} 
+                    saleData={selectedSale} 
                 />
 
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200">

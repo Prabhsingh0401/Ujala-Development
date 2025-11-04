@@ -5,6 +5,7 @@ export const useFactories = () => {
     const [factories, setFactories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchFactories = useCallback(async () => {
         try {
@@ -47,20 +48,26 @@ export const useFactories = () => {
     };
 
     const handleDeleteFactory = async (factoryId) => {
+        setIsDeleting(true);
         try {
             await deleteFactory(factoryId);
             fetchFactories();
         } catch (error) {
             // Error is already handled in the service
+        } finally {
+            setIsDeleting(false);
         }
     };
 
     const handleDeleteMultipleFactories = async (factoryIds) => {
+        setIsDeleting(true);
         try {
             await deleteMultipleFactories(factoryIds);
             fetchFactories();
         } catch (error) {
             // Error is already handled in the service
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -73,6 +80,7 @@ export const useFactories = () => {
         updateFactory: handleUpdateFactory,
         deleteFactory: handleDeleteFactory,
         deleteMultipleFactories: handleDeleteMultipleFactories,
-        fetchFactories
+        fetchFactories,
+        isDeleting
     };
 };

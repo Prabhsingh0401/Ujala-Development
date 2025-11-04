@@ -99,7 +99,7 @@ const assignProductsToDistributor = asyncHandler(async (req, res) => {
 
     const updatedProducts = await Product.updateMany(
         { _id: { $in: productIds } },
-        { $set: { distributor: distributorId } }
+        { $set: { distributor: distributorId, assignedToDistributorAt: new Date() } }
     );
 
     if (updatedProducts.modifiedCount === 0) {
@@ -139,6 +139,7 @@ const assignProductBySerial = asyncHandler(async (req, res) => {
     }
 
     product.distributor = distributorId;
+    product.assignedToDistributorAt = new Date();
     await product.save();
 
     res.json({ message: 'Product assigned successfully', product });

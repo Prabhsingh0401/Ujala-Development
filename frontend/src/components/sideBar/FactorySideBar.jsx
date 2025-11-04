@@ -47,7 +47,7 @@ export function FactorySideBar({ sidebarOpen, toggleSidebar }) {
                 <div className="h-full flex flex-col px-4 pb-4 overflow-y-auto" style={{ background: 'var(--sidebar-bg)' }}>
                     {/* Sidebar Header */}
                     <div
-                        className={`flex items-center h-20 border-b border-gray-300/70 ${
+                        className={`flex items-center h-20 ${
                             sidebarOpen ? 'justify-between px-2' : 'justify-center'
                         }`}
                     >
@@ -83,7 +83,7 @@ export function FactorySideBar({ sidebarOpen, toggleSidebar }) {
 
                     {/* Sidebar Items */}
                     {sidebarOpen ? (
-                        <ul className="mt-4 space-y-2 font-bold">
+                        <ul className="mt-1 space-y-1 font-bold">
                             {factorySidebarItems.map((item, index) => {
                                 const Icon = item.icon;
 
@@ -91,7 +91,7 @@ export function FactorySideBar({ sidebarOpen, toggleSidebar }) {
                                     <li key={index}>
                                         <Link
                                             to={item.path}
-                                            className={`flex items-center py-2 px-3 rounded-xl group transition-all duration-200  ${isActive(item.path) ? 'bg-white' : ''}`}
+                                            className={`flex items-center py-1 px-3 rounded-xl group transition-all duration-200  ${isActive(item.path) ? 'bg-white' : ''}`}
                                         >
                                             <div
                                                 className={`p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 ${isActive(item.path) ? 'bg-white' : 'bg-white/10'}`}
@@ -116,8 +116,8 @@ export function FactorySideBar({ sidebarOpen, toggleSidebar }) {
                                 return (
                                     <li key={index}>
                                         <Link to={item.path} className="block">
-                                            <div className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${active ? 'bg-white sidebar-pill' : 'bg-white/10'}`}>
-                                                <Icon className={`${active ? 'text-[var(--sidebar-bg)]' : 'text-white/90'} w-5 h-5`} />
+                                            <div className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${active ? 'bg-white sidebar-pill' : 'bg-white/10'}`}>
+                                                <Icon className={`${active ? 'text-[var(--sidebar-bg)]' : 'text-white/90'} w-4 h-4`} />
                                             </div>
                                         </Link>
                                     </li>
@@ -138,8 +138,8 @@ export function FactorySideBar({ sidebarOpen, toggleSidebar }) {
                                 </button>
                             ) : (
                                 <div className="flex items-center justify-center">
-                                    <button onClick={handleLogout} className="w-12 h-12 flex items-center justify-center rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95">
-                                        <LogOut className="w-5 h-5 text-white/90" />
+                                    <button onClick={handleLogout} className="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95">
+                                        <LogOut className="w-4 h-4 text-white/90" />
                                     </button>
                                 </div>
                             )}

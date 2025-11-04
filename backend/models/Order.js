@@ -154,8 +154,11 @@ const factoryCounterSchema = new mongoose.Schema({
     },
     counter: {
         type: Number,
-        default: 10000
+        default: 10000,
+        min: 10000
     }
+}, {
+    timestamps: true
 });
 
 const Order = mongoose.model('Order', orderSchema);

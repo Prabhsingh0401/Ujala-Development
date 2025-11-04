@@ -4,7 +4,8 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { AuthContext } from '../../context/AuthContext';
 import { Building, Shield, ArrowLeft, X, Eye, EyeOff } from 'lucide-react';
-import DistributorRegister from './DistributorRegister'; 
+import DistributorRegister from './DistributorRegister';
+import CustomerAuth from './CustomerAuth';
 
 const userTypes = [
     {
@@ -21,20 +22,34 @@ const userTypes = [
         icon: Building,
         bg: '#EF4444'
     },
-    // {
-    //     id: 'distributor',
-    //     title: 'Distributor',
-    //     description: 'Distributor operations',
-    //     icon: Building, // Using Building icon for now, can change later if needed
-    //     bg: '#3B82F6' // A distinct color for distributor
-    // },
-    // {
-    //     id: 'dealer',
-    //     title: 'Dealer',
-    //     description: 'Dealer operations',
-    //     icon: Building, // Using Building icon for now, can change later if needed
-    //     bg: '#10B981' // A distinct color for dealer
-    // }
+    {
+        id: 'member',
+        title: 'Staff',
+        description: 'Organization member (custom privileges)',
+        icon: Shield,
+        bg: '#F59E0B'
+    },
+    {
+        id: 'distributor',
+        title: 'Distributor',
+        description: 'Distributor operations',
+        icon: Building, // Using Building icon for now, can change later if needed
+        bg: '#3B82F6' // A distinct color for distributor
+    },
+    {
+        id: 'dealer',
+        title: 'Dealer',
+        description: 'Dealer operations',
+        icon: Building, // Using Building icon for now, can change later if needed
+        bg: '#09b961ff' // A distinct color for dealer
+    },
+    {
+        id: 'customer',
+        title: 'Customer',
+        description: 'Buyers and end customers',
+        icon: Building,
+        bg: '#06B6D4'
+    }
 ];
 
 export default function Login() {
@@ -65,17 +80,31 @@ export default function Login() {
                 role: selectedUserType
             });
 
-            login(response.data.user);
+            // Ensure admin users have full management access
+            const userData = response.data.user;
+            if (userData.role === 'admin') {
+                userData.privileges = {
+                    ...userData.privileges,
+                    management: {
+                        add: true,
+                        modify: true,
+                        delete: true,
+                        full: true
+                    }
+                };
+            }
+
+            login(userData);
             toast.success('Login successful!');
             
-            if (selectedUserType === 'admin') {
+            if (selectedUserType === 'admin' || selectedUserType === 'member') {
                 navigate('/');
             } else if (selectedUserType === 'factory') {
-                navigate('/factory/orders');
+                navigate('/factory/dashboard');
             } else if (selectedUserType === 'distributor') {
-                navigate('/distributor/dashboard'); // Redirect to distributor dashboard
+                navigate('/distributor/dashboard');
             } else if (selectedUserType === 'dealer') {
-                navigate('/dealer/dashboard'); // Redirect to dealer dashboard
+                navigate('/dealer/dashboard');
             }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Login failed');
@@ -103,20 +132,20 @@ export default function Login() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50">
-            <div className="w-1/2 bg-gradient-to-br from-[#5b189b] to-[#5b189b] text-white flex items-center justify-center p-12">
+        <div className="flex md:flex-row flex-col h-screen bg-gray-50">
+            <div className="hidden md:flex w-1/2 bg-gradient-to-br from-[#5b189b] to-[#5b189b] text-white items-center justify-center p-12">
                 <div>
-                    <h1 className="text-5xl font-bold mb-4">Ujala Dashboard</h1>
-                    <p className="text-lg text-gray-200">Streamlining factory and order management.</p>
+                    <h1 className="text-3xl md:text-5xl font-bold mb-4">Ujala Dashboard</h1>
+                    <p className="text-md md:text-lg text-gray-200">Streamlining factory and order management.</p>
                 </div>
             </div>
-            <div className="w-1/2 flex items-center justify-center p-8">
+            <div className="w-full md:w-1/2 flex items-center justify-center p-8">
                 <div className="w-full max-w-2xl">
                     {!selectedUserType ? (
                         <div>
-                            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
+                            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
                             <p className="text-gray-600 mb-8">Please select your user type to continue.</p>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {userTypes.map((type) => {
                                     const Icon = type.icon;
                                     return (
@@ -142,6 +171,8 @@ export default function Login() {
                         </div>
                     ) : selectedUserType === 'distributor' && showDistributorRegister ? (
                         <DistributorRegister onBack={() => setShowDistributorRegister(false)} />
+                    ) : selectedUserType === 'customer' ? (
+                        <CustomerAuth onBack={() => setSelectedUserType(null)} />
                     ) : (
                         <div>
                             <div className="flex items-center mb-6">
@@ -154,8 +185,8 @@ export default function Login() {
                                 >
                                     <ArrowLeft className="w-5 h-5" />
                                 </button>
-                                <h2 className="text-3xl font-bold text-gray-900">
-                                    Welcome Back {selectedUserType === 'admin' ? 'Admin' : selectedUserType === 'factory' ? 'Factory' : selectedUserType === 'distributor' ? 'Distributor' : 'Dealer'}!
+                                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+                                    Welcome Back {selectedUserType === 'admin' ? 'Admin' : selectedUserType === 'member' ? 'Staff' : selectedUserType === 'factory' ? 'Factory' : selectedUserType === 'distributor' ? 'Distributor' : 'Dealer'}!
                                 </h2>
                             </div>
                             <p className="text-gray-600 mb-8">Please enter your credentials.</p>
@@ -231,7 +262,7 @@ export default function Login() {
             </div>
             {/* Forgot Password Modal */}
             {showForgotPassword && (
-                <div className="fixed inset-0 bg-black/70 bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/70 bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-gray-900">Forgot Password</h3>
@@ -258,7 +289,7 @@ export default function Login() {
                                     required
                                 />
                             </div>
-                            <div className="flex gap-3">
+                            <div className="flex flex-col md:flex-row gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setShowForgotPassword(false)}

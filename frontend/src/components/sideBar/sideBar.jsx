@@ -8,7 +8,8 @@ import {
   Truck,
   LayoutDashboard,
   Settings,
-  Bell,
+  ShoppingCart,
+  ChevronDown,
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import NotificationIcon from '../global/NotificationIcon';
@@ -19,6 +20,12 @@ const sidebarItems = [
     path: '/',
     icon: LayoutDashboard,
     color: 'blue',
+  },
+  {
+    title: 'Add Members',
+    path: '/add-members',
+    icon: Users,
+    color: 'orange',
   },
   {
     title: 'Management',
@@ -41,83 +48,68 @@ const sidebarItems = [
       },
     ],
   },
-  // {
-  //   title: 'Products',
-  //   path: '/products',
-  //   icon: Package,
-  //   color: 'yellow',
-  // },
-  // {
-  //   title: 'Distributors',
-  //   path: '/distributors',
-  //   icon: Users,
-  //   color: 'purple',
-  // },
-  // {
-  //   title: 'Dealers',
-  //   path: '/dealers',
-  //   icon: Truck,
-  //   color: 'red',
-  // },
+  {
+    title: 'Inventory',
+    path: '/inventory',
+    icon: Package,
+    color: 'yellow',
+  },
+  {
+    title: 'Sales',
+    path: '/sales',
+    icon: ShoppingCart,
+    color: 'green',
+  },
+  {
+    title: 'Distributors',
+    path: '/distributors',
+    icon: Users,
+    color: 'purple',
+  },
+  {
+    title: 'Dealers',
+    path: '/dealers',
+    icon: Truck,
+    color: 'red',
+  },
 ];
 
-const getActiveClasses = (color) => {
-  const colorMap = {
-    blue: 'text-blue-600',
-    indigo: 'text-indigo-600',
-    green: 'text-green-600',
-    yellow: 'text-yellow-600',
-    purple: 'text-purple-600',
-    red: 'text-red-600',
-  };
-  return colorMap[color] || 'text-gray-600';
-};
-
-const getActiveIconBgClasses = (color) => {
-  return 'bg-transparent';
-};
-
-const getInactiveIconBgClasses = (color) => {
-  return 'bg-transparent';
-};
-
-const getIconColorClasses = (color) => {
-  const colorMap = {
-    blue: 'text-blue-500',
-    indigo: 'text-indigo-500',
-    green: 'text-green-500',
-    yellow: 'text-yellow-500',
-    purple: 'text-purple-500',
-    red: 'text-red-500',
-    orange: 'text-orange-500',
-  };
-  return colorMap[color] || 'text-gray-500';
-};
-
-export function SideBar({ sidebarOpen, toggleSidebar }) {
-  const [crmOpen, setCrmOpen] = useState(false);
+export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
+  const [factoryDropdownOpen, setFactoryDropdownOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, hasPrivilege, isAdmin } = useContext(AuthContext);
+
+  const pathToSection = {
+    '/management': 'management',
+    '/factory-management': 'factories',
+    '/orders': 'orders',
+    '/products': 'products',
+    '/distributors': 'distributors',
+    '/dealers': 'dealers',
+    '/add-members': 'management',
+    '/sales': 'sales',
+  };
+
+  const canAccessSection = (section) => {
+    if (!section) return true;
+    if (isAdmin) return true;
+    return (
+      hasPrivilege(section, 'full') ||
+      hasPrivilege(section, 'add') ||
+      hasPrivilege(section, 'modify') ||
+      hasPrivilege(section, 'delete')
+    );
+  };
 
   useEffect(() => {
     if (!sidebarOpen) {
-      setCrmOpen(false);
+      setFactoryDropdownOpen(false);
     }
   }, [sidebarOpen]);
 
-  const toggleCrm = () => {
-    if (!sidebarOpen) {
-      toggleSidebar();
-    }
-    setCrmOpen(!crmOpen);
-  };
-
-  const isChildActive = (children) => {
-    return children.some(child => isActive(child.path));
-  };
-
   const isActive = (path) => location.pathname === path;
+  const isChildActive = (children) => children.some((child) => isActive(child.path));
 
   const handleLogout = () => {
     logout();
@@ -132,16 +124,18 @@ export function SideBar({ sidebarOpen, toggleSidebar }) {
         }`}
         aria-label="Sidebar"
       >
-        <div className="h-full flex flex-col px-4 pb-4 overflow-y-auto" style={{ background: 'var(--sidebar-bg)' }}>
+        <div
+          className="h-full flex flex-col px-4 pb-4 overflow-y-auto"
+          style={{ background: 'var(--sidebar-bg)' }}
+        >
           {/* Sidebar Header */}
           <div
-            className={`flex items-center h-20 border-b border-gray-300/40 ${
+            className={`flex items-center h-20 ${
               sidebarOpen ? 'justify-between px-2' : 'justify-center'
             }`}
           >
             {sidebarOpen && (
               <div className="flex items-center space-x-3">
-                {/* <img src="/Ujala_template_logo.png" alt="Ujala" className="w-10 h-10 object-contain" /> */}
                 <div>
                   <div className="text-lg font-extrabold">Ujala</div>
                   <div className="text-xs text-white/80 -mt-1">Admin Dashboard</div>
@@ -151,7 +145,7 @@ export function SideBar({ sidebarOpen, toggleSidebar }) {
             <button
               onClick={toggleSidebar}
               type="button"
-              className="p-2 text-white rounded-xl hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all duration-200 "
+              className="p-2 text-white rounded-xl hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all duration-200"
             >
               <svg
                 className="w-6 h-6"
@@ -159,183 +153,265 @@ export function SideBar({ sidebarOpen, toggleSidebar }) {
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           </div>
 
           {/* Sidebar Items */}
           {sidebarOpen ? (
-            <ul className="mt-4 space-y-2 font-bold">
-              {sidebarItems.map((item, index) => {
-                const Icon = item.icon;
+            <ul className="mt-1 space-y-1 font-bold">
+              {sidebarItems
+                .filter((item) => {
+                  if (item.path === '/') return true;
+                  if (item.children) {
+                    return item.children.some((child) => {
+                      const section = pathToSection[child.path] || null;
+                      return canAccessSection(section);
+                    });
+                  }
+                  if (item.path === '/add-members') return isAdmin;
+                  const section = pathToSection[item.path] || null;
+                  return canAccessSection(section);
+                })
+                .map((item, index) => {
+                  const Icon = item.icon;
 
-                return (
-                  <li key={index}>
-                    {item.children ? (
-                      <>
-                        {/* Collapsible Parent */}
+                  if (item.children) {
+                    const active = isChildActive(item.children);
+                    return (
+                      <li key={index}>
                         <button
-                          onClick={toggleCrm}
+                          onClick={() => setFactoryDropdownOpen(!factoryDropdownOpen)}
                           type="button"
-                          className={`flex items-center w-full py-2 px-3 rounded-xl group transition-all duration-200 font-bold ${isChildActive(item.children) ? 'bg-white sidebar-pill' : ''}`}
+                          className={`flex items-center w-full py-1 px-3 rounded-xl group transition-all duration-200 font-bold ${
+                            active ? 'bg-white sidebar-pill' : ''
+                          }`}
                         >
-                          <div className={`p-2 rounded-full transition-colors duration-200 flex-shrink-0 ${isChildActive(item.children) ? 'bg-[var(--primary-purple)]' : 'bg-white/10'}`}>
+                          <div
+                            className={`p-2 rounded-full transition-colors duration-200 flex-shrink-0 ${
+                              active ? 'bg-[var(--primary-purple)]' : 'bg-white/10'
+                            }`}
+                          >
                             <Icon
-                              className={`w-5 h-5 ${isChildActive(item.children) ? 'text-white' : 'text-white/90'}`}
+                              className={`w-5 h-5 ${active ? 'text-white' : 'text-white/90'}`}
                             />
                           </div>
-                          <>
-                            <span className={`flex-1 ml-4 text-left font-bold ${isChildActive(item.children) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}>
-                              {item.title}
-                            </span>
-                            <svg
-                              className={`w-4 h-4 transition-transform duration-200 ${
-                                crmOpen ? 'rotate-180' : ''
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
-                          </>
+                          <span
+                            className={`flex-1 ml-4 text-left font-bold ${
+                              active ? 'text-[var(--sidebar-bg)]' : 'text-white/90'
+                            }`}
+                          >
+                            {item.title}
+                          </span>
+                          <ChevronDown
+                            className={`w-4 h-4 transition-transform duration-200 ${
+                              factoryDropdownOpen ? 'rotate-180' : ''
+                            }`}
+                          />
                         </button>
 
-                        {/* Children Links */}
-                        <ul
-                          className={`space-y-2 mt-2 transition-all duration-300 overflow-hidden  ${
-                            crmOpen
-                              ? 'max-h-40 opacity-100'
-                              : 'max-h-0 opacity-0'
-                          } pl-7`}
-                        >
-                          {item.children.map((child, childIndex) => (
-                            <li key={childIndex}>
-                              <Link
-                                to={child.path}
-                                className={`flex items-center w-full py-2 px-3 transition duration-200 rounded-lg ${isActive(child.path) ? 'bg-white sidebar-pill' : ''}`}
-                              >
-                                {sidebarOpen && (
-                                  <>
-                                    <span className={`w-2 h-2 ${isActive(child.path) ? 'bg-[var(--primary-purple)]' : 'bg-white/40'} rounded-full mr-3 flex-shrink-0`}></span>
-                                    <span className={`${isActive(child.path) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'} font-bold`}>{child.title}</span>
-                                  </>
-                                )}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : (
+                        {factoryDropdownOpen && (
+                          <ul className="pl-11 mt-2 space-y-1">
+                            {item.children.map((child, childIndex) => (
+                              <li key={childIndex}>
+                                <Link
+                                  to={child.path}
+                                  className={`block py-1 px-3 rounded-md text-sm ${
+                                    isActive(child.path)
+                                      ? 'bg-white/20 text-white'
+                                      : 'text-white/80 hover:bg-white/10'
+                                  }`}
+                                >
+                                  • {child.title}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  }
+
+                  return (
+                    <li key={index}>
                       <Link
                         to={item.path}
-                        className={`flex items-center py-2 px-3 rounded-xl group transition-all duration-200  ${isActive(item.path) ? 'bg-white' : ''}`}
+                        className={`flex items-center py-1 px-3 rounded-xl group transition-all duration-200 ${
+                          isActive(item.path) ? 'bg-white' : ''
+                        }`}
                       >
                         <div
-                          className={`p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 ${isActive(item.path) ? 'bg-white' : 'bg-white/10'}`}
+                          className={`p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 ${
+                            isActive(item.path) ? 'bg-white' : 'bg-white/10'
+                          }`}
                         >
                           {item.showIcon ? (
-                            <NotificationIcon />
+                            <NotificationIcon count={totalNotifications} />
                           ) : (
                             <Icon
-                              className={`w-5 h-5 ${isActive(item.path) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}
+                              className={`w-5 h-5 ${
+                                isActive(item.path)
+                                  ? 'text-[var(--sidebar-bg)]'
+                                  : 'text-white/90'
+                              }`}
                             />
                           )}
                         </div>
-                        {sidebarOpen && (
-                          <span className={`ml-4 font-bold ${isActive(item.path) ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}>{item.title}</span>
-                        )}
+                        <span
+                          className={`ml-4 font-bold ${
+                            isActive(item.path)
+                              ? 'text-[var(--sidebar-bg)]'
+                              : 'text-white/90'
+                          }`}
+                        >
+                          {item.title}
+                        </span>
                       </Link>
-                    )}
-                  </li>
-                );
-              })}
+                    </li>
+                  );
+                })}
             </ul>
           ) : (
-            <ul className="mt-6 flex flex-col items-center space-y-4">
-              {sidebarItems.map((item, index) => {
-                const Icon = item.icon;
-                const active = item.children ? isChildActive(item.children) : isActive(item.path);
-                return (
-                  <li key={index}>
-                    <Link to={item.path} className="block">
-                      <div className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${active ? 'bg-white sidebar-pill' : 'bg-white/10'}`}>
-                        {item.showIcon ? (
-                          <NotificationIcon />
-                        ) : (
-                          <Icon className={`${active ? 'text-[var(--sidebar-bg)]' : 'text-white/90'} w-5 h-5`} />
-                        )}
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
+            <ul className="mt-6 flex flex-col items-center space-y-2">
+              {sidebarItems
+                .filter((item) => {
+                  if (item.path === '/') return true;
+                  if (item.children) {
+                    return item.children.some((child) => {
+                      const section = pathToSection[child.path] || null;
+                      return canAccessSection(section);
+                    });
+                  }
+                  if (item.path === '/add-members') return isAdmin;
+                  const section = pathToSection[item.path] || null;
+                  return canAccessSection(section);
+                })
+                .map((item, index) => {
+                  const Icon = item.icon;
+                  const active = item.children
+                    ? isChildActive(item.children)
+                    : isActive(item.path);
+                  return (
+                    <li key={index}>
+                      {item.children ? (
+                        <button
+                          onClick={() => {
+                            if (!sidebarOpen) toggleSidebar();
+                            setFactoryDropdownOpen(!factoryDropdownOpen);
+                          }}
+                          className="block"
+                        >
+                          <div
+                            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                              active ? 'bg-white sidebar-pill' : 'bg-white/10'
+                            }`}
+                          >
+                            <Icon
+                              className={`${
+                                active
+                                  ? 'text-[var(--sidebar-bg)]'
+                                  : 'text-white/90'
+                              } w-4 h-4`}
+                            />
+                          </div>
+                        </button>
+                      ) : (
+                        <Link to={item.path} className="block">
+                          <div
+                            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                              active ? 'bg-white sidebar-pill' : 'bg-white/10'
+                            }`}
+                          >
+                            {item.showIcon ? (
+                              <NotificationIcon count={totalNotifications} />
+                            ) : (
+                              <Icon
+                                className={`${
+                                  active
+                                    ? 'text-[var(--sidebar-bg)]'
+                                    : 'text-white/90'
+                                } w-4 h-4`}
+                              />
+                            )}
+                          </div>
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
             </ul>
           )}
 
           {/* User Info & Logout */}
-          <div className="mt-auto">
-            {/* Notifications - Only show for admin */}
-            {user?.role === 'admin' && (
-              <div className="mb-4">
-                {/* {sidebarOpen ? (
-                  <Link to="/notifications" className={`flex items-center py-2 px-3 rounded-xl group transition-all duration-200 ${isActive('/notifications') ? 'bg-white sidebar-pill' : ''}`}>
-                    <div className={`p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 ${isActive('/notifications') ? 'bg-[var(--primary-purple)]' : 'bg-white/10'}`}>
-                      <div className={isActive('/notifications') ? 'text-white' : 'text-white/90'}>
-                        <NotificationIcon />
-                      </div>
+          <div className="mt-auto flex items-center justify-center">
+            {sidebarOpen ? (
+              <div className="flex items-center space-x-2">
+                {user?.role === 'admin' && (
+                  <Link
+                    to="/notifications"
+                    className={`p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 ${
+                      isActive('/notifications')
+                        ? 'bg-[var(--primary-purple)]'
+                        : 'bg-white/10'
+                    }`}
+                  >
+                    <div
+                      className={
+                        isActive('/notifications') ? 'text-white' : 'text-white/90'
+                      }
+                    >
+                      <NotificationIcon count={totalNotifications} />
                     </div>
-                    <span className={`ml-4 font-bold ${isActive('/notifications') ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}`}>Notifications</span>
                   </Link>
-                ) : (
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 bg-white/10"
+                >
+                  <LogOut className="w-5 h-5 text-white/90" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center space-y-2">
+                {user?.role === 'admin' && (
                   <Link to="/notifications" className="flex items-center justify-center">
-                    <div className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${isActive('/notifications') ? 'bg-white sidebar-pill' : 'bg-white/10'}`}>
-                      <div className={isActive('/notifications') ? 'text-[var(--sidebar-bg)]' : 'text-white/90'}>
-                        <NotificationIcon />
+                    <div
+                      className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                        isActive('/notifications')
+                          ? 'bg-white sidebar-pill'
+                          : 'bg-white/10'
+                      }`}
+                    >
+                      <div
+                        className={
+                          isActive('/notifications')
+                            ? 'text-[var(--sidebar-bg)]'
+                            : 'text-white/90'
+                        }
+                      >
+                        <NotificationIcon count={totalNotifications} />
                       </div>
                     </div>
                   </Link>
-                )} */}
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95"
+                >
+                  <LogOut className="w-4 h-4 text-white/90" />
+                </button>
               </div>
             )}
-            
-            <div className="mt-4">
-              {sidebarOpen ? (
-                <button onClick={handleLogout} className="w-full flex items-center py-2 px-3 rounded-xl group transition-all duration-200 hover:bg-white/10 hover:scale-105 active:scale-95">
-                  <div className="p-2 rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 bg-white/10">
-                    <LogOut className="w-5 h-5 text-white/90" />
-                  </div>
-                  <span className="ml-4 font-bold text-white/90">Logout</span>
-                </button>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <button onClick={handleLogout} className="w-12 h-12 flex items-center justify-center rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95">
-                    <LogOut className="w-5 h-5 text-white/90" />
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
-          {/* </div> */}
         </div>
       </aside>
 
       {/* Overlay for Mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/80 sm:hidden"
           onClick={toggleSidebar}
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
         ></div>
       )}
     </>

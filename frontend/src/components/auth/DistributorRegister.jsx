@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -10,11 +10,40 @@ export default function DistributorRegister({ onBack }) {
         name: '',
         email: '',
         phone: '',
-        location: '',
+        state: '',
+        city: '',
         territory: '',
     });
     const [loading, setLoading] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [states, setStates] = useState([]);
+    const [cities, setCities] = useState([]);
+
+    useEffect(() => {
+        const fetchStates = async () => {
+            try {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/states`);
+                setStates(response.data);
+            } catch (error) {
+                console.error('Error fetching states:', error);
+            }
+        };
+        fetchStates();
+    }, []);
+
+    const handleStateChange = async (state) => {
+        setFormData({ ...formData, state, city: '' });
+        if (state) {
+            try {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/cities/${state}`);
+                setCities(response.data);
+            } catch (error) {
+                console.error(`Error fetching cities for ${state}:`, error);
+            }
+        } else {
+            setCities([]);
+        }
+    };
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -34,7 +63,7 @@ export default function DistributorRegister({ onBack }) {
     };
 
     return (
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-cl p-4 md:p-0">
             <div className="flex items-center mb-6">
                 <button
                     onClick={onBack}
@@ -42,12 +71,12 @@ export default function DistributorRegister({ onBack }) {
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h2 className="text-3xl font-bold text-gray-900">Register as Distributor</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Register as Distributor</h2>
             </div>
             <p className="text-gray-600 mb-8">Fill out the form below to request a distributor account.</p>
 
             <form onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="name">Name *</label>
                         <input
@@ -88,17 +117,37 @@ export default function DistributorRegister({ onBack }) {
                         />
                     </div>
                     <div>
-                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="location">Location *</label>
-                        <input
+                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="state">State *</label>
+                        <select
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent transition-shadow duration-200"
-                            id="location"
-                            type="text"
-                            name="location"
-                            value={formData.location}
-                            onChange={handleChange}
-                            placeholder="Enter your location"
+                            id="state"
+                            name="state"
+                            value={formData.state}
+                            onChange={(e) => handleStateChange(e.target.value)}
                             required
-                        />
+                        >
+                            <option value="">Select State</option>
+                            {states.map(state => (
+                                <option key={state} value={state}>{state}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="city">City *</label>
+                        <select
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent transition-shadow duration-200"
+                            id="city"
+                            name="city"
+                            value={formData.city}
+                            onChange={handleChange}
+                            required
+                            disabled={!formData.state}
+                        >
+                            <option value="">Select City</option>
+                            {cities.map(city => (
+                                <option key={city} value={city}>{city}</option>
+                            ))}
+                        </select>
                     </div>
                     <div>
                         <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="territory">Territory</label>
@@ -125,7 +174,7 @@ export default function DistributorRegister({ onBack }) {
 
             {/* Success Modal */}
             {showSuccessModal && (
-                <div className="fixed inset-0 bg-black/70 bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/70 bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 text-center">
                         <div className="flex justify-end">
                             <button

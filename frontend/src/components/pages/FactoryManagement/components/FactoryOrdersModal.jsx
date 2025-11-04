@@ -4,9 +4,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { getFactoryOrders, bulkUpdateOrderStatus } from '../services/factoryService';
 
-const itemsPerPage = 10;
-
-export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFactories }) {
+export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFactories, initialTab }) {
     const [factoryOrders, setFactoryOrders] = useState([]);
     const [orderSearchTerm, setOrderSearchTerm] = useState('');
     const [orderTypeFilter, setOrderTypeFilter] = useState('all');
@@ -14,8 +12,15 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
     const [endDate, setEndDate] = useState('');
     const [modalActiveTab, setModalActiveTab] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const [selectedItems, setSelectedItems] = useState([]);
     const [isDownloading, setIsDownloading] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setModalActiveTab(initialTab || 'all');
+        }
+    }, [isOpen, initialTab]);
 
     useEffect(() => {
         if (isOpen && factory) {
@@ -68,7 +73,7 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
     const paginatedOrders = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         return groupedOrders.slice(startIndex, startIndex + itemsPerPage);
-    }, [groupedOrders, currentPage]);
+    }, [groupedOrders, currentPage, itemsPerPage]);
 
     const handleClose = () => {
         setFactoryOrders([]);
@@ -145,6 +150,13 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
 
     const totalPages = Math.ceil(groupedOrders.length / itemsPerPage);
 
+    const clearFilters = () => {
+        setOrderSearchTerm('');
+        setOrderTypeFilter('all');
+        setStartDate('');
+        setEndDate('');
+    };
+
     return (
         <div className="fixed inset-0 bg-black/70 bg-opacity-20 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
@@ -213,6 +225,12 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                                     title="End Date"
                                 />
                             </div>
+                            <button
+                                onClick={clearFilters}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                            >
+                                Clear Filters
+                            </button>
                         </div>
 
                         {selectedItems.length > 0 && (
@@ -249,7 +267,7 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                                     type="checkbox"
                                     checked={filteredOrders.length > 0 && filteredOrders.every(item => selectedItems.includes(item._id))}
                                     onChange={handleSelectAll}
-                                    className="h-4 w-4 text-[#4d55f5] focus:ring-[#4d55f5] border-gray-300 rounded"
+                                    className="h-4 w-4 text-[#4d55f5] focus:ring-[#4d55f5] rounded"
                                 />
                                 <label className="text-sm font-medium text-gray-700">
                                     Select All ({filteredOrders.length})
@@ -264,7 +282,7 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Box</th>
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                            {/* <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th> */}
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created Date</th>
@@ -309,7 +327,7 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                                                             {boxData.items.map((it) => (<div key={it._id}>{it?.serialNumber}</div>))}
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{boxData.category?.name}</td>
+                                                    {/* <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{boxData.category?.name}</td> */}
                                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{boxData.model?.name}</td>
                                                     <td className="px-4 py-3 whitespace-nowrap">
                                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${boxData.orderType === '2_units' ? 'bg-blue-100 text-blue-800' : boxData.orderType === '3_units' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
@@ -355,10 +373,27 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                 </div>
 
                 <div className="border-t border-gray-200 px-4 sm:px-6 py-3 bg-gray-50">
-                     <div className="flex items-center justify-between">
-                         <div className="text-sm text-gray-700">
-                             Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, groupedOrders.length)} of {groupedOrders.length} boxes
-                         </div>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-gray-700">
+                            <div className="flex items-center gap-2">
+                                <span>Items per page:</span>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(Number(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                    className="p-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent bg-white"
+                                >
+                                    {[10, 25, 50, 75, 100].map(size => (
+                                        <option key={size} value={size}>{size}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                Showing {groupedOrders.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, groupedOrders.length)} of {groupedOrders.length} boxes
+                            </div>
+                        </div>
                          {totalPages > 1 && (
                              <div className="flex items-center space-x-2">
                                  <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100">

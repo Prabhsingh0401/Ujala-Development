@@ -21,7 +21,8 @@ export const getProductDetails = async (req, res) => {
                 name: orderItem.model?.name,
                 specifications: orderItem.model?.specifications
             },
-            factory: orderItem.factory?.name,
+            // Return both id and name so clients can validate ownership
+            factory: orderItem.factory ? { id: orderItem.factory._id, name: orderItem.factory.name } : null,
             status: orderItem.status,
             orderType: orderItem.orderType,
             boxNumber: orderItem.boxNumber,

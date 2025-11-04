@@ -17,7 +17,7 @@ export function OrderCard({
   };
 
   return (
-    <div className="md:hidden space-y-4 p-4">
+    <div className="md:hidden p-3">
       {orders.length > 0 ? (
         <ListComponent
           items={orders}
@@ -40,14 +40,14 @@ export function OrderCard({
                   <button onClick={() => onEdit(order)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <FilePenLine size={20} className="text-gray-500" />
                   </button>
-                  <button onClick={() => onDelete(order._id)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                  <button onClick={() => onDelete(order)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <Trash2 size={20} className="text-red-500" />
                   </button>
                 </div>
               </div>
               <p className="text-sm text-gray-600">Order ID: {order.orderId}</p>
               <p className="text-sm text-blue-600 font-medium">Serial: {order.serialNumber}</p>
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+              <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
                 <div><span className="font-medium">Factory:</span> {order.factory?.name}</div>
                 <div><span className="font-medium">Category:</span> {order.category?.name}</div>
                 <div><span className="font-medium">Boxes:</span> {order.quantity}</div>
@@ -72,8 +72,8 @@ export function OrderCard({
           )}
           itemContainer="div"
           listContainer="div"
-          itemClassName="bg-gray-50 rounded-lg p-4 space-y-2"
-          listClassName="space-y-4"
+          itemClassName="bg-white border border-gray-200 rounded-lg p-4 space-y-3 shadow-sm"
+          listClassName="space-y-3"
         />
       ) : (
         <div className="text-center py-12 text-gray-500">No orders</div>

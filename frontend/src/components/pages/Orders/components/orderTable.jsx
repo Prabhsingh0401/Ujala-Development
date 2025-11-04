@@ -1,4 +1,4 @@
-import { Eye, FilePenLine, Trash2 } from 'lucide-react';
+import { Eye, FilePenLine, Trash2, Truck } from 'lucide-react';
 import ListComponent from '../../../global/ListComponent';
 
 export function OrderTable({
@@ -41,11 +41,12 @@ export function OrderTable({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ORDER ID</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SERIAL NUMBER</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FACTORY</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CATEGORY</th>
+            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CATEGORY</th> */}
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MODEL</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BOXES</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TOTAL UNITS</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ORDER TYPE</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DISPATCHED</th>
+            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ORDER TYPE</th> */}
             {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th> */}
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
           </tr>
@@ -65,15 +66,21 @@ export function OrderTable({
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.orderId}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{order.serialNumber}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.factory?.name}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.category?.name}</td>
+              {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.category?.name}</td> */}
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.model?.name}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.quantity}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{getTotalUnits(order)}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="inline-flex items-center px-2.5 py-1.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                      <Truck className="h-4 w-4 mr-1.5" />
+                      {order.dispatchedUnits} Dispatched
+                  </div>
+              </td>
+              {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getOrderTypeDisplay(order.orderType).bgColor} ${getOrderTypeDisplay(order.orderType).textColor}`}>
                   {getOrderTypeDisplay(order.orderType).label}
                 </span>
-              </td>
+              </td> */}
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <div className="flex items-center space-x-2">
                   <button onClick={() => onView(order)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
@@ -82,7 +89,7 @@ export function OrderTable({
                   <button onClick={() => onEdit(order)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <FilePenLine size={20} className="text-gray-500" />
                   </button>
-                  <button onClick={() => onDelete(order._id)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                  <button onClick={() => onDelete(order)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <Trash2 size={20} className="text-red-500" />
                   </button>
                 </div>

@@ -72,6 +72,16 @@ const productSchema = new mongoose.Schema({
         type: String,
         enum: ['Active', 'Inactive'],
         default: 'Active'
+    },
+    sold: {
+        type: Boolean,
+        default: false
+    },
+    saleDate: {
+        type: Date
+    },
+    assignedToDistributorAt: {
+        type: Date
     }
 }, { timestamps: true });
 

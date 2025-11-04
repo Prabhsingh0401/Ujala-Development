@@ -1,9 +1,10 @@
 import Factory from '../models/Factory.js';
-import Order from '../models/Order.js';
+import Order, { OrderItem } from '../models/Order.js';
 // import Product from '../models/Product.js';
 import Dealer from '../models/Dealer.js';
 import Distributor from '../models/Distributor.js';
 import Model from '../models/Model.js';
+import Sale from '../models/Sale.js';
 
 export const getOrderStats = async (req, res) => {
     try {
@@ -42,6 +43,39 @@ export const getDashboardStats = async (req, res) => {
             distributors: distributorCount,
             models: modelCount
         });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const getOrderItemStats = async (req, res) => {
+    try {
+        const pendingItems = await OrderItem.countDocuments({ status: 'Pending' });
+        const completedItems = await OrderItem.countDocuments({ status: 'Completed' });
+        const dispatchedItems = await OrderItem.countDocuments({ status: 'Dispatched' });
+
+        res.json({
+            pending: pendingItems,
+            completed: completedItems,
+            dispatched: dispatchedItems
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const getMonthlySalesData = async (req, res) => {
+    try {
+        const salesData = await Sale.aggregate([
+            {
+                $group: {
+                    _id: { $month: '$createdAt' },
+                    total: { $sum: '$amount' }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+        res.json(salesData);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

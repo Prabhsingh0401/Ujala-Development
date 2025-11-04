@@ -42,6 +42,14 @@ const modelSchema = new mongoose.Schema({
       required: true
     }
   },
+  warranty: [
+    {
+      state: { type: String, required: true },
+      city: { type: String, required: true },
+      durationType: { type: String, enum: ['Months', 'Years'], required: true },
+      duration: { type: Number, required: true }
+    }
+  ],
   status: {
     type: String,
     enum: ['Active', 'Inactive'],

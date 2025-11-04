@@ -1,13 +1,14 @@
 import { useState, useEffect, useContext } from 'react';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { X, Eye, EyeOff, Check } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { AuthContext } from '../../context/AuthContext';
 
-export default function Notifications() {
+export default function Notifications({ setTotalNotifications }) {
     const { user } = useContext(AuthContext);
     const [passwordResetRequests, setPasswordResetRequests] = useState([]);
     const [distributorRequests, setDistributorRequests] = useState([]);
+    const [dealerDeletionRequests, setDealerDeletionRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedPasswordResetRequest, setSelectedPasswordResetRequest] = useState(null);
     const [selectedDistributorRequest, setSelectedDistributorRequest] = useState(null);
@@ -16,6 +17,14 @@ export default function Notifications() {
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
     const [approveLoading, setApproveLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('password');
+    const [showDeleteConfirmationModal, setShowDeleteConfirmationModal] = useState(false);
+    const [requestToDelete, setRequestToDelete] = useState(null);
+
+    const passwordCount = passwordResetRequests.length;
+    const distributorCount = distributorRequests.length;
+    const dealerDeletionCount = dealerDeletionRequests.length;
+    const totalNotifications = passwordCount + distributorCount + dealerDeletionCount;
 
     const getConfig = () => {
         return {
@@ -32,12 +41,15 @@ export default function Notifications() {
     const fetchRequests = async () => {
         try {
             setLoading(true);
-            const [passwordResetRes, distributorReqRes] = await Promise.all([
+            const [passwordResetRes, distributorReqRes, dealerDeletionReqRes] = await Promise.all([
                 axios.get(`${import.meta.env.VITE_API_URL}/api/auth/password-reset-requests`, getConfig()),
-                axios.get(`${import.meta.env.VITE_API_URL}/api/distributor-requests/pending`, getConfig())
+                axios.get(`${import.meta.env.VITE_API_URL}/api/distributor-requests/pending`, getConfig()),
+                axios.get(`${import.meta.env.VITE_API_URL}/api/dealer-deletion-requests`, getConfig())
             ]);
             setPasswordResetRequests(passwordResetRes.data);
             setDistributorRequests(distributorReqRes.data);
+            setDealerDeletionRequests(dealerDeletionReqRes.data);
+            setTotalNotifications(passwordResetRes.data.length + distributorReqRes.data.length + dealerDeletionReqRes.data.length);
         } catch (error) {
             toast.error('Error fetching requests');
         } finally {
@@ -77,6 +89,18 @@ export default function Notifications() {
         }
     };
 
+    const handleDeclinePasswordReset = async (requestId) => {
+        if (window.confirm('Are you sure you want to decline this password reset request?')) {
+            try {
+                await axios.delete(`${import.meta.env.VITE_API_URL}/api/auth/password-reset-requests/${requestId}`, getConfig());
+                toast.success('Password reset request declined');
+                fetchRequests();
+            } catch (error) {
+                toast.error(error.response?.data?.message || 'Decline failed');
+            }
+        }
+    };
+
     const handleResetPassword = async (e) => {
         e.preventDefault();
         setResetLoading(true);
@@ -93,6 +117,37 @@ export default function Notifications() {
             toast.error(error.response?.data?.message || 'Reset failed');
         } finally {
             setResetLoading(false);
+        }
+    };
+
+    const handleApproveDealerDeletion = (request) => {
+        setRequestToDelete(request);
+        setShowDeleteConfirmationModal(true);
+    };
+
+    const handleConfirmDeleteDealer = async () => {
+        if (!requestToDelete) return;
+
+        try {
+            await axios.delete(`${import.meta.env.VITE_API_URL}/api/dealer-deletion-requests/${requestToDelete._id}/approve`, getConfig());
+            toast.success('Dealer and deletion request approved and removed!');
+            fetchRequests();
+            setShowDeleteConfirmationModal(false);
+            setRequestToDelete(null);
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to approve deletion request');
+        }
+    };
+
+    const handleDeclineDealerDeletion = async (requestId) => {
+        if (window.confirm('Are you sure you want to decline this dealer deletion request?')) {
+            try {
+                await axios.delete(`${import.meta.env.VITE_API_URL}/api/dealer-deletion-requests/${requestId}/decline`, getConfig());
+                toast.success('Dealer deletion request declined!');
+                fetchRequests();
+            } catch (error) {
+                toast.error(error.response?.data?.message || 'Failed to decline deletion request');
+            }
         }
     };
 
@@ -118,133 +173,232 @@ export default function Notifications() {
                 <p className="text-gray-600 mt-2">Manage all pending requests.</p>
             </div>
 
-            {/* Password Reset Requests */}
-            <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Password Reset Requests</h2>
-                {passwordResetRequests.length === 0 ? (
-                    <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-                        <div className="text-gray-400 mb-4">
-                            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 17h5l-5 5-5-5h5v-12h5v12z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No pending password reset requests</h3>
-                        <p className="text-gray-500">All password reset requests have been processed.</p>
-                    </div>
-                ) : (
-                    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 border-b-amber-50">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Type</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Entity</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Username</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Location</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Requested</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {passwordResetRequests.map((request) => (
-                                        <tr key={request._id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 text-gray-900 capitalize">{request.role}</td>
-                                            <td className="px-6 py-4">
-                                                {request.role === 'factory' && (
-                                                    <div className="font-medium text-gray-900">{request.factory?.name}</div>
-                                                )}
-                                                {request.role === 'distributor' && (
-                                                    <div className="font-medium text-gray-900">{request.distributor?.name}</div>
-                                                )}
-                                                <div className="text-sm text-gray-500">
-                                                    {request.role === 'factory' && `Code: ${request.factory?.code}`}
-                                                    {request.role === 'distributor' && `ID: ${request.distributor?._id}`}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-900">{request.username}</td>
-                                            <td className="px-6 py-4 text-gray-600">
-                                                {request.role === 'factory' && request.factory?.location}
-                                                {request.role === 'distributor' && request.distributor?.location}
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-600">
-                                                {new Date(request.requestedAt).toLocaleDateString()} at{' '}
-                                                {new Date(request.requestedAt).toLocaleTimeString()}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <button
-                                                    onClick={() => setSelectedPasswordResetRequest(request)}
-                                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                                                >
-                                                    Reset Password
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+            <div className="mb-6 border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                    <button
+                        onClick={() => setActiveTab('password')}
+                        className={`${activeTab === 'password' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                    >
+                        <span>Password Reset Requests</span>
+                        {passwordCount > 0 && (
+                            <span className="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">{passwordCount}</span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('distributor')}
+                        className={`${activeTab === 'distributor' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                    >
+                        <span>New Distributor Requests</span>
+                        {distributorCount > 0 && (
+                            <span className="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">{distributorCount}</span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('dealerDeletion')}
+                        className={`${activeTab === 'dealerDeletion' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                    >
+                        <span>Dealer Deletion Requests</span>
+                        {dealerDeletionCount > 0 && (
+                            <span className="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">{dealerDeletionCount}</span>
+                        )}
+                    </button>
+                </nav>
             </div>
 
-            {/* New Distributor Requests */}
-            <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">New Distributor Requests</h2>
-                {distributorRequests.length === 0 ? (
-                    <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-                        <div className="text-gray-400 mb-4">
-                            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 17h5l-5 5-5-5h5v-12h5v12z" />
-                            </svg>
+            {activeTab === 'password' && (
+                <div className="mb-8">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Password Reset Requests</h2>
+                    {passwordResetRequests.length === 0 ? (
+                        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                            <div className="text-gray-400 mb-4">
+                                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 17h5l-5 5-5-5h5v-12h5v12z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No pending password reset requests</h3>
+                            <p className="text-gray-500">All password reset requests have been processed.</p>
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No pending distributor requests</h3>
-                        <p className="text-gray-500">All new distributor requests have been processed.</p>
-                    </div>
-                ) : (
-                    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 border-b-amber-50">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Name</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Email</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Location</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Requested</th>
-                                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {distributorRequests.map((request) => (
-                                        <tr key={request._id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 text-gray-900">{request.name}</td>
-                                            <td className="px-6 py-4 text-gray-900">{request.email}</td>
-                                            <td className="px-6 py-4 text-gray-600">{request.location}</td>
-                                            <td className="px-6 py-4 text-gray-600">
-                                                {new Date(request.requestedAt).toLocaleDateString()} at{' '}
-                                                {new Date(request.requestedAt).toLocaleTimeString()}
-                                            </td>
-                                            <td className="px-6 py-4 flex space-x-2">
-                                                <button
-                                                    onClick={() => setSelectedDistributorRequest(request)}
-                                                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                                                >
-                                                    Approve
-                                                </button>
-                                                <button
-                                                    onClick={() => handleRejectDistributorRequest(request._id)}
-                                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                                                >
-                                                    Reject
-                                                </button>
-                                            </td>
+                    ) : (
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 border-b-amber-50">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Type</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Entity</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Username</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Location</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Requested</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Action</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {passwordResetRequests.map((request) => (
+                                            <tr key={request._id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 text-gray-900 capitalize">{request.role}</td>
+                                                <td className="px-6 py-4">
+                                                    {request.role === 'factory' && (
+                                                        <div className="font-medium text-gray-900">{request.factory?.name}</div>
+                                                    )}
+                                                    {request.role === 'distributor' && (
+                                                        <div className="font-medium text-gray-900">{request.distributor?.name}</div>
+                                                    )}
+                                                    <div className="text-sm text-gray-500">
+                                                        {request.role === 'factory' && `Code: ${request.factory?.code}`}
+                                                        {request.role === 'distributor' && `ID: ${request.distributor?._id}`}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-gray-900">{request.username}</td>
+                                                <td className="px-6 py-4 text-gray-600">
+                                                    {request.role === 'factory' && request.factory?.location}
+                                                    {request.role === 'distributor' && request.distributor?.location}
+                                                </td>
+                                                <td className="px-6 py-4 text-gray-600">
+                                                    {new Date(request.requestedAt).toLocaleDateString()} at{' '}
+                                                    {new Date(request.requestedAt).toLocaleTimeString()}
+                                                </td>
+                                                                                                                                        <td className="px-6 py-4 flex space-x-2">
+                                                                                                                                            <button
+                                                                                                                                                onClick={() => setSelectedPasswordResetRequest(request)}
+                                                                                                                                                className="text-green-600 hover:text-green-800 p-2 rounded-full border hover:bg-gray-100"
+                                                                                                                                                title="Approve Request"
+                                                                                                                                            >
+                                                                                                                                                <Check className="w-5 h-5" />
+                                                                                                                                            </button>
+                                                                                                                                            <button
+                                                                                                                                                onClick={() => handleDeclinePasswordReset(request._id)}
+                                                                                                                                                className="text-red-600 hover:text-red-800 p-2 rounded-full border hover:bg-gray-100"
+                                                                                                                                                title="Decline Request"
+                                                                                                                                            >
+                                                                                                                                                <X className="w-5 h-5" />                                                                                                                 </button>                                                                                                  </td>                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'distributor' && (
+                <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">New Distributor Requests</h2>
+                    {distributorRequests.length === 0 ? (
+                        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                            <div className="text-gray-400 mb-4">
+                                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 17h5l-5 5-5-5h5v-12h5v12z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No pending distributor requests</h3>
+                            <p className="text-gray-500">All new distributor requests have been processed.</p>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 border-b-amber-50">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Name</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Email</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Location</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Requested</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {distributorRequests.map((request) => (
+                                            <tr key={request._id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 text-gray-900">{request.name}</td>
+                                                <td className="px-6 py-4 text-gray-900">{request.email}</td>
+                                                <td className="px-6 py-4 text-gray-600">{request.location}</td>
+                                                <td className="px-6 py-4 text-gray-600">
+                                                    {new Date(request.requestedAt).toLocaleDateString()} at{' '}
+                                                    {new Date(request.requestedAt).toLocaleTimeString()}
+                                                </td>
+                                                <td className="px-6 py-4 flex space-x-2">
+                                                    <button
+                                                        onClick={() => setSelectedDistributorRequest(request)}
+                                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRejectDistributorRequest(request._id)}
+                                                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'dealerDeletion' && (
+                <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Dealer Deletion Requests</h2>
+                    {dealerDeletionRequests.length === 0 ? (
+                        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                            <div className="text-gray-400 mb-4">
+                                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 17h5l-5 5-5-5h5v-12h5v12z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No pending dealer deletion requests</h3>
+                            <p className="text-gray-500">All dealer deletion requests have been processed.</p>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 border-b-amber-50">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Dealer Name</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Distributor Name</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Requested At</th>
+                                            <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {dealerDeletionRequests.map((request) => (
+                                            <tr key={request._id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 text-gray-900">{request.dealer?.name}</td>
+                                                <td className="px-6 py-4 text-gray-900">{request.distributor?.name}</td>
+                                                <td className="px-6 py-4 text-gray-600">
+                                                    {new Date(request.requestedAt).toLocaleDateString()} at{' '}
+                                                    {new Date(request.requestedAt).toLocaleTimeString()}
+                                                </td>
+                                                <td className="px-6 py-4 flex space-x-2">
+                                                    <button
+                                                        onClick={() => handleApproveDealerDeletion(request)}
+                                                        className="text-green-600 hover:text-green-800 p-2 rounded-full border hover:bg-gray-100"
+                                                        title="Approve Deletion"
+                                                    >
+                                                        <Check className="w-5 h-5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeclineDealerDeletion(request._id)}
+                                                        className="text-red-600 hover:text-red-800 p-2 rounded-full border hover:bg-gray-100"
+                                                        title="Decline Deletion"
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Reset Password Modal */}
             {selectedPasswordResetRequest && (
@@ -391,6 +545,40 @@ export default function Notifications() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Dealer Deletion Confirmation Modal */}
+            {showDeleteConfirmationModal && requestToDelete && (
+                <div className="fixed inset-0 bg-black/70 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">Confirm Dealer Deletion</h3>
+                            <button
+                                onClick={() => setShowDeleteConfirmationModal(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <p className="text-gray-700 mb-4">
+                            Are you sure you want to delete the dealer <span className="font-medium">{requestToDelete.dealer?.name}</span> (requested by <span className="font-medium">{requestToDelete.distributor?.name}</span>)? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end space-x-2">
+                            <button
+                                onClick={() => setShowDeleteConfirmationModal(false)}
+                                className="px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmDeleteDealer}
+                                className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700"
+                            >
+                                Confirm Deletion
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

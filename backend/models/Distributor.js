@@ -12,15 +12,25 @@ const distributorSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    location: {
+    state: {
         type: String,
         required: true,
         trim: true
     },
-    territory: {
+    city: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    address: {
         type: String,
         trim: true,
         required: false
+    },
+    gstNumber: {
+        type: String,
+        trim: true,
+        required: true
     },
     contactPerson: {
         type: String,
@@ -76,7 +86,7 @@ distributorSchema.pre('save', async function(next) {
 });
 
 // Add index for better search performance
-distributorSchema.index({ name: 'text', location: 'text', territory: 'text' });
+distributorSchema.index({ name: 'text', state: 'text', city: 'text', address: 'text' });
 
 const Distributor = mongoose.model('Distributor', distributorSchema);
 

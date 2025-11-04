@@ -38,7 +38,10 @@ const factorySchema = new mongoose.Schema({
         required: [true, 'Address is required'],
         trim: true
     },
-
+    lastViewedOrdersTimestamp: {
+        type: Date,
+        default: Date.now
+    }
 }, {
     timestamps: true // This will add createdAt and updatedAt fields automatically
 });

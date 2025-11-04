@@ -1,21 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Eye, Search, CheckCircle, Truck, Clock } from 'lucide-react'; // Added Clock icon for pending
 import { useFactoryOrders } from './hooks/useFactoryOrder';
 import OrderDetailsModal from './components/orderDetailModal';
 import ListComponent from '../../global/ListComponent';
 import ErrorBoundary from '../../global/ErrorBoundary';
+import { markFactoryOrdersSeen } from '../FactoryManagement/services/factoryService'; // Import the new service
+import { AuthContext } from '../../../context/AuthContext'; // Import AuthContext
 
 function FactoryOrders() {
     const [showOrderDetailsModal, setShowOrderDetailsModal] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const { user, triggerDashboardRefresh } = useContext(AuthContext); // Get user and triggerDashboardRefresh from AuthContext
 
     const { 
         orders, 
         loading, 
         handleStatusChange, 
-        downloadMultiplePDFs 
+        downloadMultiplePDFs,
+        startDate, setStartDate,
+        endDate, setEndDate,
+        modelFilter, setModelFilter,
+        models,
+        clearFilters: clearHookFilters
     } = useFactoryOrders();
+
+    useEffect(() => {
+        const factoryId = user?.factory?._id;
+        if (factoryId) {
+            const markAndRefresh = async () => {
+                await markFactoryOrdersSeen(factoryId);
+                triggerDashboardRefresh(); // Trigger dashboard refresh after marking orders as seen
+            };
+            markAndRefresh();
+        }
+    }, [user]); // Call markAndRefresh when component mounts or user/triggerDashboardRefresh changes
 
     const handleViewOrder = (order) => {
         setSelectedOrder(order);
@@ -28,36 +47,88 @@ function FactoryOrders() {
         }
         return acc;
     }, [])
-    // ## FIX: Sort unique orders by creation date in descending order ##
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     const filteredUniqueOrders = uniqueOrders.filter(order => 
         searchTerm === '' || order.orderId?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const clearAllFilters = () => {
+        clearHookFilters();
+        setSearchTerm('');
+    };
+
     return (
-        <div className="p-4">
-            <div className="p-6">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Your Factory Orders</h1>
+        <div className="p-2">
+            <div className="">
+                <div className="mb-4x`">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Factory Orders</h1>
                 </div>
 
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                    <div className="p-4 sm:p-6 border-b border-gray-200 flex justify-between items-center">
-                        <div>
+                    <div className="p-4 sm:p-6 border-b border-gray-200 flex flex-wrap gap-4 justify-between items-center">
+                        <div className="flex-grow">
                             <h2 className="text-lg font-semibold text-gray-900">All Orders</h2>
                             <p className="text-sm text-gray-600">{uniqueOrders.length} unique orders found</p>
                         </div>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search by Order ID..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600"
-                            />
+
+                        <div className="flex flex-wrap items-center gap-4">
+                            {/* Date filters */}
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="startDate" className="text-sm font-medium text-gray-700">From:</label>
+                                <input
+                                    type="date"
+                                    id="startDate"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="w-36 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="endDate" className="text-sm font-medium text-gray-700">To:</label>
+                                <input
+                                    type="date"
+                                    id="endDate"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="w-36 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                            </div>
+
+                            {/* Model filter */}
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="modelFilter" className="text-sm font-medium text-gray-700">Model:</label>
+                                <select
+                                    id="modelFilter"
+                                    value={modelFilter}
+                                    onChange={(e) => setModelFilter(e.target.value)}
+                                    className="w-36 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                >
+                                    <option value="all">All Models</option>
+                                    {models.map(model => (
+                                        <option key={model._id} value={model._id}>{model.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Search by Order ID */}
+                            <div className="relative flex-grow">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by Order ID..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600"
+                                />
+                            </div>
+                            <button
+                                onClick={clearAllFilters}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                            >
+                                Clear Filters
+                            </button>
                         </div>
                     </div>
 
@@ -65,6 +136,10 @@ function FactoryOrders() {
                         <div className="text-center py-20">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                             <p className="mt-4 text-gray-500">Loading your orders...</p>
+                        </div>
+                    ) : filteredUniqueOrders.length === 0 ? (
+                        <div className="text-center py-20">
+                            <p className="mt-4 text-gray-500">No orders match your criteria.</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">

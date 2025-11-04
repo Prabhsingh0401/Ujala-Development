@@ -1,31 +1,39 @@
 import express from 'express';
-import { getFactories, getFactoryById, createFactory, updateFactory, deleteFactory, getFactoryOrders, updateOrderItemStatus, bulkUpdateOrderItemStatus, getFactorySales, deleteMultipleFactories } from '../controllers/factoryController.js';
+import { getFactories, getFactoryById, createFactory, updateFactory, deleteFactory, getFactoryOrders, updateOrderItemStatus, bulkUpdateOrderItemStatus, getFactorySales, deleteMultipleFactories, checkFactoryCodeUniqueness, getNewOrdersCount, markOrdersSeen } from '../controllers/factoryController.js';
+import { verifyToken, checkPermission, checkSectionAccess } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
 // @route   GET /api/factories
-router.get('/', getFactories);
+router.get('/', verifyToken, checkSectionAccess('factories'), getFactories);
 
 // @route   GET /api/factories/:id
-router.get('/:id', getFactoryById);
+router.get('/:id', verifyToken, getFactoryById);
 
 // @route   POST /api/factories
-router.post('/', createFactory);
+router.get('/check-code/:code', verifyToken, checkFactoryCodeUniqueness);
+
+// @route   POST /api/factories
+router.post('/', verifyToken, checkPermission('factories', 'add'), createFactory);
 
 // @route   PUT /api/factories/:id
-router.put('/:id', updateFactory);
+router.put('/:id', verifyToken, checkPermission('factories', 'modify'), updateFactory);
 
 // @route   DELETE /api/factories/:id
-router.delete('/:id', deleteFactory);
+router.delete('/:id', verifyToken, checkPermission('factories', 'delete'), deleteFactory);
 
 // @route   DELETE /api/factories/
-router.delete('/', deleteMultipleFactories);
+router.delete('/', verifyToken, checkPermission('factories', 'delete'), deleteMultipleFactories);
 
 // @route   GET /api/factories/:id/orders
 router.get('/:id/orders', getFactoryOrders);
 
 // @route   GET /api/factories/:id/sales
 router.get('/:id/sales', getFactorySales);
+
+// New routes for new orders count and marking orders as seen
+router.get('/:id/new-orders-count', getNewOrdersCount);
+router.patch('/:id/mark-orders-seen', markOrdersSeen);
 
 // @route   PATCH /api/factories/:id/orders/:itemId/status
 router.patch('/:id/orders/:itemId/status', updateOrderItemStatus);

@@ -1,7 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Eye, EyeOff } from 'lucide-react';
+import axios from 'axios';
 
-export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditing }) {
+// Simple debounce function
+const debounce = (func, delay) => {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+};
+
+export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditing, isSaving }) {
     const [newFactory, setNewFactory] = useState({
         name: '',
         code: '',
@@ -14,10 +25,38 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
         password: ''
     });
     const [showPassword, setShowPassword] = useState(false);
+    const [codeError, setCodeError] = useState('');
+    const [isCheckingCode, setIsCheckingCode] = useState(false);
+
+    const checkCodeUniqueness = useCallback(
+        debounce(async (code) => {
+            if (!code || isEditing) { // Don't check uniqueness if editing or code is empty
+                setCodeError('');
+                setIsCheckingCode(false);
+                return;
+            }
+            setIsCheckingCode(true);
+            try {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/factories/check-code/${code}`);
+                if (!response.data.isUnique) {
+                    setCodeError('This code is already in use.');
+                } else {
+                    setCodeError('');
+                }
+            } catch (error) {
+                console.error('Error checking code uniqueness:', error);
+                setCodeError('Error checking code uniqueness.');
+            } finally {
+                setIsCheckingCode(false);
+            }
+        }, 500),
+        [isEditing]
+    );
 
     useEffect(() => {
         if (isEditing && factory) {
             setNewFactory(factory);
+            setCodeError(''); // Clear error when editing
         } else {
             setNewFactory({
                 name: '',
@@ -30,11 +69,15 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
                 username: '',
                 password: ''
             });
+            setCodeError(''); // Clear error when adding new
         }
     }, [isEditing, factory, isOpen]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (codeError || isCheckingCode) {
+            return; // Prevent submission if there's a code error or still checking
+        }
         onSave(newFactory);
     };
 
@@ -65,10 +108,22 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
                                     type="text"
                                     required
                                     value={newFactory[field]}
-                                    onChange={(e) => setNewFactory({ ...newFactory, [field]: e.target.value })}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setNewFactory({ ...newFactory, [field]: value });
+                                        if (field === 'code') {
+                                            checkCodeUniqueness(value);
+                                        }
+                                    }}
                                     placeholder={field === 'code' ? 'Enter unique factory code (e.g., F1, F2)' : `Enter ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent ${field === 'code' && codeError ? 'border-red-500' : 'border-gray-300'}`}
                                 />
+                                {field === 'code' && codeError && (
+                                    <p className="text-red-500 text-sm mt-1">{codeError}</p>
+                                )}
+                                {field === 'code' && isCheckingCode && (
+                                    <p className="text-gray-500 text-sm mt-1">Checking code uniqueness...</p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -119,9 +174,14 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
                     <div className="mt-8">
                         <button
                             type="submit"
-                            className="w-full px-6 py-3 bg-[#8B8FFF] text-white rounded-xl hover:bg-[#7B7FFF] transition-colors font-medium cursor-pointer"
+                            disabled={codeError || isCheckingCode || isSaving}
+                            className="w-full px-6 py-3 bg-[#8B8FFF] text-white rounded-xl hover:bg-[#7B7FFF] transition-colors font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isEditing ? 'Update Factory' : 'Add Factory'}
+                            {isSaving ? (
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mx-auto"></div>
+                            ) : (
+                                isEditing ? 'Update Factory' : 'Add Factory'
+                            )}
                         </button>
                     </div>
                 </form>

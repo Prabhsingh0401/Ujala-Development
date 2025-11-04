@@ -3,21 +3,26 @@ import {
     getDealers,
     createDealer,
     updateDealer,
-    deleteDealer
+    deleteDealer,
+    deleteMultipleDealers
 } from '../controllers/dealerController.js';
+import { verifyToken, checkPermission, checkSectionAccess } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
 // @route   GET /api/dealers
-router.get('/', getDealers);
+router.get('/', verifyToken, checkSectionAccess('dealers'), getDealers);
 
 // @route   POST /api/dealers
-router.post('/', createDealer);
+router.post('/', verifyToken, checkPermission('dealers', 'add'), createDealer);
 
 // @route   PUT /api/dealers/:id
-router.put('/:id', updateDealer);
+router.put('/:id', verifyToken, checkPermission('dealers', 'modify'), updateDealer);
 
 // @route   DELETE /api/dealers/:id
-router.delete('/:id', deleteDealer);
+router.delete('/:id', verifyToken, checkPermission('dealers', 'delete'), deleteDealer);
+
+// @route   DELETE /api/dealers
+router.delete('/', verifyToken, checkPermission('dealers', 'delete'), deleteMultipleDealers);
 
 export default router;

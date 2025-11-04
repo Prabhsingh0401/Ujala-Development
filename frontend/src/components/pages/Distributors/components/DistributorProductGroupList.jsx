@@ -3,11 +3,11 @@ import { X } from 'lucide-react';
 import { groupProductsByConfiguration, getOrderTypeDisplay } from '../utils';
 import { distributorDealerProductService } from '../../../../services/distributorDealerProductService';
 import { toast } from 'react-hot-toast';
+import './TableList.css';
 
-export default function DistributorProductGroupList({ products, dealers, distributor }) {
+export default function DistributorProductGroupList({ products, dealers, distributor, selectedProductGroups = [], setSelectedProductGroups }) {
     const groupedProducts = groupProductsByConfiguration(products);
     const [showAssignModal, setShowAssignModal] = useState(false);
-    const [selectedProductGroups, setSelectedProductGroups] = useState([]);
     const [selectedDealer, setSelectedDealer] = useState('');
 
     const handleAssignClick = (productGroups) => {
@@ -33,7 +33,7 @@ export default function DistributorProductGroupList({ products, dealers, distrib
             }
             toast.success('Products assigned successfully');
             setShowAssignModal(false);
-            setSelectedProductGroups([]);
+            if (setSelectedProductGroups) setSelectedProductGroups([]);
             setSelectedDealer('');
         } catch (error) {
             toast.error('Error assigning products');
@@ -42,6 +42,7 @@ export default function DistributorProductGroupList({ products, dealers, distrib
     };
 
     const handleSelectAll = (e) => {
+        if (!setSelectedProductGroups) return;
         if (e.target.checked) {
             setSelectedProductGroups(groupedProducts);
         } else {
@@ -50,6 +51,7 @@ export default function DistributorProductGroupList({ products, dealers, distrib
     };
 
     const handleSelectRow = (e, productGroup) => {
+        if (!setSelectedProductGroups) return;
         if (e.target.checked) {
             setSelectedProductGroups([...selectedProductGroups, productGroup]);
         } else {
@@ -67,7 +69,7 @@ export default function DistributorProductGroupList({ products, dealers, distrib
 
     return (
         <>
-            {selectedProductGroups.length > 0 && (
+            {selectedProductGroups && selectedProductGroups.length > 0 && (
                 <div className="mb-4">
                     <button
                         onClick={() => handleAssignClick(selectedProductGroups)}
@@ -78,19 +80,19 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                 </div>
             )}
             <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-gray-200 responsive-table">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 <input type="checkbox" onChange={handleSelectAll} />
-                            </th>
+                            </th> */}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Box Type</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Numbers</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th> */}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Factory</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th> */}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned to</th>
                         </tr>
                     </thead>
@@ -102,24 +104,24 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                                     key={group._id}
                                     className={`hover:bg-gray-50 ${isAssigned ? 'bg-gray-100 text-gray-500' : ''}`}
                                 >
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        <input type="checkbox" onChange={(e) => handleSelectRow(e, group)} checked={selectedProductGroups.some(g => g._id === group._id)} disabled={isAssigned} />
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{group.productName}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" data-label="Select">
+                                        <input type="checkbox" onChange={(e) => handleSelectRow(e, group)} checked={selectedProductGroups && selectedProductGroups.some(g => g._id === group._id)} disabled={isAssigned} />
+                                    </td> */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" data-label="Product Name">{group.productName}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Box Type">
                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getOrderTypeDisplay(group.orderType).bgColor} ${getOrderTypeDisplay(group.orderType).textColor}`}>
                                             {getOrderTypeDisplay(group.orderType).label}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Serial Numbers">
                                         {group.productsInBox.map(product => (
                                             <div key={product._id}>{product.serialNumber}</div>
                                         ))}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{group.category?.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{group.model?.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{group.factory?.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Category">{group.category?.name}</td> */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Model">{group.model?.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Factory">{group.factory?.name}</td>
+                                    {/* <td className="px-6 py-4 whitespace-nowrap" data-label="Status">
                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                                             group.productsInBox[0]?.status === 'Active' 
                                                 ? 'bg-green-100 text-green-800' 
@@ -127,8 +129,8 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                                         }`}>
                                             {group.productsInBox[0]?.status}
                                         </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    </td> */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Assigned to">
                                         {isAssigned ? group.productsInBox[0].assignedTo : 'Not Assigned'}
                                     </td>
                                 </tr>
@@ -140,7 +142,7 @@ export default function DistributorProductGroupList({ products, dealers, distrib
 
             {showAssignModal && (
                 <div className="fixed inset-0 bg-black/70 bg-opacity-20 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-gray-900">
                                 Assign {selectedProductGroups.length} Product Groups to Dealer
@@ -148,7 +150,7 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                             <button
                                 onClick={() => {
                                     setShowAssignModal(false);
-                                    setSelectedProductGroup(null);
+                                    if (setSelectedProductGroups) setSelectedProductGroups([]);
                                     setSelectedDealer('');
                                 }}
                                 className="text-gray-400 hover:text-gray-600"

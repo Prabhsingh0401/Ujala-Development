@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Search, Plus, X, FilePenLine, Trash2, Box } from 'lucide-react';
 import ListComponent from '../../global/ListComponent';
 import ErrorBoundary from '../../global/ErrorBoundary';
 import { useDealers } from './hooks/useDealers';
 import { distributorDealerProductService } from '../../../services/distributorDealerProductService';
 import { toast } from 'react-hot-toast';
+import axios from 'axios';
 
 import DealerProductGroupList from './components/DealerProductGroupList';
 
@@ -25,19 +26,24 @@ function Dealers() {
     const [isEditing, setIsEditing] = useState(false);
     const [showProductsModal, setShowProductsModal] = useState(false);
     const [dealerProducts, setDealerProducts] = useState([]);
+    const [states, setStates] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [selectedDealers, setSelectedDealers] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Apply pagination
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = dealers.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(dealers.length / itemsPerPage);
+    const totalPages = useMemo(() => Math.ceil(dealers.length / itemsPerPage), [dealers, itemsPerPage]);
+    const currentItems = useMemo(() => {
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        return dealers.slice(indexOfFirstItem, indexOfLastItem);
+    }, [dealers, currentPage, itemsPerPage]);
     
     const [newDealer, setNewDealer] = useState({
         name: '',
-        location: '',
-        territory: '',
+        address: '',
+        state: '',
+        city: '',
         contactPerson: '',
         contactPhone: '',
         email: '',
@@ -47,8 +53,39 @@ function Dealers() {
         password: ''
     });
 
+    const [cities, setCities] = useState([]);
+
+    useEffect(() => {
+        const fetchStates = async () => {
+            try {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/states`);
+                setStates(response.data);
+            } catch (error) {
+                console.error('Error fetching states:', error);
+            }
+        };
+        fetchStates();
+    }, []);
+
+    const fetchCities = async (state) => {
+        if (!state) return;
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/cities/${state}`);
+            setCities(response.data);
+        } catch (error) {
+            console.error(`Error fetching cities for ${state}:`, error);
+        }
+    };
+
+    useEffect(() => {
+        if (newDealer.state) {
+            fetchCities(newDealer.state);
+        }
+    }, [newDealer.state]);
+
     const handleAddEditDealer = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
         let success;
         if (isEditing) {
             success = await updateDealer(selectedDealer._id, newDealer);
@@ -58,19 +95,23 @@ function Dealers() {
         if (success) {
             handleModalClose();
         }
+        setIsSubmitting(false);
     };
 
     const handleEditClick = (dealer) => {
         setSelectedDealer(dealer);
         setNewDealer({
             name: dealer.name,
-            location: dealer.location,
-            territory: dealer.territory,
+            address: dealer.address,
+            state: dealer.state,
+            city: dealer.city,
             contactPerson: dealer.contactPerson,
             contactPhone: dealer.contactPhone,
             email: dealer.email,
             status: dealer.status,
-            distributor: dealer.distributor?._id || '' // Set distributor ID for editing
+            distributor: dealer.distributor?._id || '', // Set distributor ID for editing
+            username: dealer.username || '',
+            password: '' // Keep password empty for security
         });
         setIsEditing(true);
         setShowDealerModal(true);
@@ -82,8 +123,9 @@ function Dealers() {
         setIsEditing(false);
         setNewDealer({
             name: '',
-            location: '',
-            territory: '',
+            address: '',
+            state: '',
+            city: '',
             contactPerson: '',
             contactPhone: '',
             email: '',
@@ -101,6 +143,32 @@ function Dealers() {
         } catch (error) {
             toast.error('Error fetching dealer products');
             console.error('Error:', error);
+        }
+    };
+
+    const handleSelect = (id) => {
+        setSelectedDealers(prev =>
+            prev.includes(id) ? prev.filter(dealerId => dealerId !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedDealers(dealers.map(d => d._id));
+        } else {
+            setSelectedDealers([]);
+        }
+    };
+
+    const handleDeleteSelected = async () => {
+        if (window.confirm(`Are you sure you want to delete ${selectedDealers.length} selected dealers?`)) {
+            try {
+                await axios.delete(`${import.meta.env.VITE_API_URL}/api/dealers`, { data: { dealerIds: selectedDealers } });
+                window.location.reload();
+                toast.success('Selected dealers deleted successfully');
+            } catch (error) {
+                toast.error(error.response?.data?.message || 'Error deleting dealers');
+            }
         }
     };
 
@@ -127,13 +195,23 @@ function Dealers() {
                                         className="w-full sm:w-auto pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
                                     />
                                 </div>
-                                <button
-                                    onClick={() => setShowDealerModal(true)}
-                                    className="flex items-center justify-center space-x-2 bg-[#4d55f5] text-white px-4 py-2 rounded-lg hover:bg-[#3d45e5] transition-colors"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    <span>Add Dealer</span>
-                                </button>
+                                {selectedDealers.length > 0 ? (
+                                    <button
+                                        onClick={handleDeleteSelected}
+                                        className="flex items-center justify-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span>Delete ({selectedDealers.length})</span>
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowDealerModal(true)}
+                                        className="flex items-center justify-center space-x-2 bg-[#4d55f5] text-white px-4 py-2 rounded-lg hover:bg-[#3d45e5] transition-colors"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        <span>Add Dealer</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -144,20 +222,28 @@ function Dealers() {
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4d55f5] mx-auto"></div>
                                 <p className="mt-4 text-gray-500">Loading dealers...</p>
                             </div>
+                        ) : dealers.length === 0 ? (
+                            <div className="text-center py-12 text-gray-500">
+                                No dealers found.
+                            </div>
                         ) : (
                             <>
                                 <div className="hidden md:block overflow-x-auto">
                                     <table className="w-full">
                                         <thead className="bg-gray-50">
                                             <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <input type="checkbox" onChange={handleSelectAll} checked={selectedDealers.length === dealers.length && dealers.length > 0} />
+                                                </th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Territory</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th> */}
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+                                                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th> */}
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distributor</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th> */}
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
@@ -165,16 +251,20 @@ function Dealers() {
                                             items={currentItems}
                                             renderItem={(dealer) => (
                                                 <>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                        <input type="checkbox" checked={selectedDealers.includes(dealer._id)} onChange={() => handleSelect(dealer._id)} />
+                                                    </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dealer.dealerId}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.name}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.location}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.territory}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.address}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.state}</td> */}
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.city}</td>
+                                                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                         <div>
                                                             <p>{dealer.contactPerson}</p>
                                                             <p className="text-gray-500">{dealer.contactPhone}</p>
                                                         </div>
-                                                    </td>
+                                                    </td> */}
                                                     
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dealer.distributor?.name}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -186,7 +276,7 @@ function Dealers() {
                                                             {dealer.productCount || 0} Products
                                                         </button>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                    {/* <td className="px-6 py-4 whitespace-nowrap">
                                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                                                             dealer.status === 'Active'
                                                                 ? 'bg-green-100 text-green-800'
@@ -194,7 +284,7 @@ function Dealers() {
                                                         }`}>
                                                             {dealer.status}
                                                         </span>
-                                                    </td>
+                                                    </td> */}
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                         <div className="flex items-center space-x-2">
                                                             <button 
@@ -221,46 +311,7 @@ function Dealers() {
                                     </table>
                                 </div>
 
-                                {/* Pagination */}
-                                <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
-                                    <div className="text-sm text-gray-700">
-                                        Rows per page:
-                                        <select
-                                            className="ml-2 border border-gray-300 rounded px-2 py-1"
-                                            value={itemsPerPage}
-                                            onChange={(e) => {
-                                                setItemsPerPage(Number(e.target.value));
-                                                setCurrentPage(1); // Reset to first page when items per page changes
-                                            }}
-                                        >
-                                            <option value="10">10</option>
-                                            <option value="20">20</option>
-                                            <option value="30">30</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex items-center space-x-4">
-                                        <span className="text-sm text-gray-700">
-                                            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, dealers.length)} of {dealers.length} dealers
-                                        </span>
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                            disabled={currentPage === 1}
-                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
-                                        >
-                                            Previous
-                                        </button>
-                                        <span className="text-sm text-gray-700">
-                                            Page {currentPage} of {totalPages}
-                                        </span>
-                                        <button
-                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                            disabled={currentPage === totalPages}
-                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
+
 
                                 <div className="md:hidden space-y-4">
                                     {dealers.length > 0 ? (
@@ -287,8 +338,9 @@ function Dealers() {
                                                     </div>
                                                     <p className="text-sm text-gray-600">{dealer.dealerId}</p>
                                                     <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                                                        <div><span className="font-medium">Location:</span> {dealer.location}</div>
-                                                        <div><span className="font-medium">Territory:</span> {dealer.territory}</div>
+                                                        <div><span className="font-medium">Address:</span> {dealer.address}</div>
+                                                        <div><span className="font-medium">State:</span> {dealer.state}</div>
+                                                        <div><span className="font-medium">City:</span> {dealer.city}</div>
                                                         <div><span className="font-medium">Contact:</span> {dealer.contactPerson}</div>
                                                         <div><span className="font-medium">Phone:</span> {dealer.contactPhone}</div>
                                                         <div className="col-span-2">
@@ -314,6 +366,58 @@ function Dealers() {
                             </>
                         )}
                     </div>
+                    {dealers.length > 0 && (
+                        <div className="px-6 py-3 border-t border-gray-200 flex flex-col md:flex-row items-center md:justify-between gap-3 md:gap-0">
+                            <div className="w-full md:w-auto flex items-center justify-between md:justify-start text-sm text-gray-700 space-x-2">
+                                <div className="flex items-center space-x-2">
+                                    <span className="whitespace-nowrap">Rows per page:</span>
+                                    <select
+                                        className="ml-2 border border-gray-300 rounded px-2 py-1"
+                                        value={itemsPerPage}
+                                        onChange={(e) => {
+                                            setItemsPerPage(Number(e.target.value));
+                                            setCurrentPage(1);
+                                        }}
+                                    >
+                                        <option value="10">10</option>
+                                        <option value="25">25</option>
+                                        <option value="50">50</option>
+                                        <option value="75">75</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+
+                                {/* Hide verbose range on small screens */}
+                                <div className="hidden md:block text-sm text-gray-700">
+                                    Showing {currentItems.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, dealers.length)} of {dealers.length} dealers
+                                </div>
+                            </div>
+
+                            <div className="w-full md:w-auto flex items-center justify-between md:justify-end space-x-2">
+                                <div className="text-sm text-gray-700 md:hidden">Page {currentPage} of {totalPages}</div>
+
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                                    >
+                                        Previous
+                                    </button>
+
+                                    <span className="text-sm text-gray-700 hidden md:inline">Page {currentPage} of {totalPages}</span>
+
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -346,27 +450,49 @@ function Dealers() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Address *</label>
                                     <input
                                         type="text"
                                         required
-                                        value={newDealer.location}
-                                        onChange={(e) => setNewDealer({...newDealer, location: e.target.value})}
-                                        placeholder="Enter location"
+                                        value={newDealer.address}
+                                        onChange={(e) => setNewDealer({...newDealer, address: e.target.value})}
+                                        placeholder="Enter address"
                                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Territory *</label>
-                                    <input
-                                        type="text"
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">State *</label>
+                                    <select
                                         required
-                                        value={newDealer.territory}
-                                        onChange={(e) => setNewDealer({...newDealer, territory: e.target.value})}
-                                        placeholder="Enter territory"
+                                        value={newDealer.state}
+                                        onChange={(e) => {
+                                            setNewDealer({...newDealer, state: e.target.value, city: ''});
+                                            fetchCities(e.target.value);
+                                        }}
                                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-                                    />
+                                    >
+                                        <option value="">Select State</option>
+                                        {states.map(state => (
+                                            <option key={state} value={state}>{state}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
+                                    <select
+                                        required
+                                        value={newDealer.city}
+                                        onChange={(e) => setNewDealer({...newDealer, city: e.target.value})}
+                                        disabled={!newDealer.state}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                    >
+                                        <option value="">Select City</option>
+                                        {cities.map(city => (
+                                            <option key={city} value={city}>{city}</option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div>
@@ -431,24 +557,24 @@ function Dealers() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Username *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Username {!isEditing && '*'}</label>
                                     <input
                                         type="text"
-                                        required
+                                        required={!isEditing}
                                         value={newDealer.username}
                                         onChange={(e) => setNewDealer({...newDealer, username: e.target.value})}
-                                        placeholder="Enter username"
+                                        placeholder={isEditing ? "Leave blank to keep current username" : "Enter username"}
                                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Password {!isEditing && '*'}</label>
                                     <input
                                         type="password"
-                                        required
+                                        required={!isEditing}
                                         value={newDealer.password}
                                         onChange={(e) => setNewDealer({...newDealer, password: e.target.value})}
-                                        placeholder="Enter password"
+                                        placeholder={isEditing ? "Leave blank to keep current password" : "Enter password"}
                                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
                                     />
                                 </div>
@@ -457,9 +583,14 @@ function Dealers() {
                             <div className="mt-8">
                                 <button
                                     type="submit"
-                                    className="w-full px-6 py-3 bg-[#8B8FFF] text-white rounded-xl hover:bg-[#7B7FFF] transition-colors font-medium"
+                                    disabled={isSubmitting}
+                                    className="w-full px-6 py-3 bg-[#8B8FFF] text-white rounded-xl hover:bg-[#7B7FFF] transition-colors font-medium flex items-center justify-center"
                                 >
-                                    {isEditing ? 'Update Dealer' : 'Add Dealer'}
+                                    {isSubmitting ? (
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    ) : (
+                                        isEditing ? 'Update Dealer' : 'Add Dealer'
+                                    )}
                                 </button>
                             </div>
                         </form>

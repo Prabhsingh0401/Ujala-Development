@@ -131,3 +131,24 @@ export const downloadMultiplePDFs = async (boxKeys) => {
         throw error;
     }
 };
+
+export const getNewOrdersCount = async (factoryId) => {
+    try {
+        const response = await axios.get(`${API_URL}/${factoryId}/new-orders-count`);
+        return response.data.newOrdersCount;
+    } catch (error) {
+        console.error('Error fetching new orders count:', error);
+        // Don't show toast for this, as it's a background stat
+        return 0;
+    }
+};
+
+export const markFactoryOrdersSeen = async (factoryId) => {
+    try {
+        await axios.patch(`${API_URL}/${factoryId}/mark-orders-seen`);
+        console.log('Factory orders marked as seen');
+    } catch (error) {
+        console.error('Error marking factory orders as seen:', error);
+        // Don't show toast for this, as it's a background action
+    }
+};

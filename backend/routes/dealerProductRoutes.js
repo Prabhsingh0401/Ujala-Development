@@ -1,8 +1,9 @@
 import express from 'express';
 const router = express.Router();
-import { assignProductToDealerBySerial } from '../controllers/dealerProductController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { assignProductToDealerBySerial, getProductBySerialNumber } from '../controllers/dealerProductController.js';
+import { verifyToken, checkPermission } from '../middleware/roleMiddleware.js';
 
-router.put('/assign-by-serial', protect, assignProductToDealerBySerial);
+router.put('/assign-by-serial', verifyToken, checkPermission('dealers', 'modify'), assignProductToDealerBySerial);
+router.get('/serial/:serialNumber', verifyToken, getProductBySerialNumber);
 
 export default router;
