@@ -63,16 +63,20 @@ export default function CustomerDashboard() {
                                     <div className="mt-3 text-sm text-gray-600">From:</div>
                                     <div className="text-sm font-medium text-gray-800">{sellerName}</div>
                                     <div className="mt-3">
-                                        {warranty ? (
-                                            <div>
-                                                <div className={`inline-block px-2 py-1 rounded text-sm ${warranty.inWarranty ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                    {warranty.inWarranty ? 'In Warranty' : 'Warranty Expired'}
+                                        <div className="text-sm text-gray-600">Plumber:</div>
+                                        <div className="text-sm font-medium text-gray-800">{sale.plumberName || '-'}</div>
+                                        <div className="mt-2">
+                                            {warranty ? (
+                                                <div>
+                                                    <div className={`inline-block px-2 py-1 rounded text-sm ${warranty.inWarranty ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {warranty.inWarranty ? 'In Warranty' : 'Warranty Expired'}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 mt-1">Expires: {new Date(warranty.expiryDate).toLocaleDateString()}</div>
                                                 </div>
-                                                <div className="text-xs text-gray-500 mt-1">Expires: {new Date(warranty.expiryDate).toLocaleDateString()}</div>
-                                            </div>
-                                        ) : (
-                                            <div className="text-sm text-gray-500">No warranty</div>
-                                        )}
+                                            ) : (
+                                                <div className="text-sm text-gray-500">No warranty</div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

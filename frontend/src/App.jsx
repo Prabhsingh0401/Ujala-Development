@@ -8,7 +8,7 @@ import FactoryOrders from './components/pages/factory/factoryorder';
 import FactorySales from './components/pages/factory/FactorySales';
 import FactoryDashboard from './components/pages/factory/FactoryDashboard';
 import DistributorDashboard from './components/pages/DistributorDashboard';
-import CustomerDashboard from './components/pages/CustomerDashboard';
+import CustomerDashboard from './components/pages/customer/CustomerDashboard';
 import CustomerLayout from './components/global/CustomerLayout';
 import DistributorProducts from './components/pages/DistributorProducts';
 import DistributorDealers from './components/pages/DistributorDealers';
@@ -18,6 +18,7 @@ import DealerLayout from './components/global/DealerLayout';
 import DealerDashboard from './components/pages/DealerDashboard';
 import DealerProducts from './components/pages/DealerProducts';
 import DealerSales from './components/pages/DealerSales';
+import AdminCustomers from '../src/components/pages/customer/components/AdminCustomers.jsx';
 import Orders from './components/pages/Orders/Orders'
 import Products from './components/pages/Products/Products'
 import ErrorBoundary from './components/global/ErrorBoundary'
@@ -132,6 +133,7 @@ const App = () => {
             <Route path="sales" element={<ProtectedSection section="sales"><Sales /></ProtectedSection>} />
             <Route path="distributors" element={<ProtectedSection section="distributors"><Distributors /></ProtectedSection>} />
             <Route path="dealers" element={<ProtectedSection section="dealers"><Dealers /></ProtectedSection>} />
+            <Route path="customers" element={<ProtectedSection section="customers"><AdminCustomers /></ProtectedSection>} />
             <Route path="unauthorized" element={<Unauthorized />} />
           </Route>
         </Routes>

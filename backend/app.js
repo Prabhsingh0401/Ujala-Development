@@ -23,6 +23,7 @@ import saleRoutes from './routes/saleRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
 import distributorRequestRoutes from './routes/distributorRequestRoutes.js';
 import dealerDeletionRequestRoutes from './routes/dealerDeletionRequestRoutes.js';
+import customerRoutes from './routes/customerRoutes.js';
 
 dotenv.config();
 
@@ -62,6 +63,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/distributor-requests', distributorRequestRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/locations', locationRoutes);
+app.use('/api/customers', customerRoutes);
 
 app.get("/", (req, res) => {
   res.send("🚀 Backend is running!");

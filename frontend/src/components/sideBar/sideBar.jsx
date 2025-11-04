@@ -72,6 +72,12 @@ const sidebarItems = [
     icon: Truck,
     color: 'red',
   },
+  {
+    title: 'Customers',
+    path: '/customers',
+    icon: Users,
+    color: 'teal',
+  },
 ];
 
 export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
@@ -87,6 +93,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
     '/products': 'products',
     '/distributors': 'distributors',
     '/dealers': 'dealers',
+    '/customers': 'customers',
     '/add-members': 'management',
     '/sales': 'sales',
   };
