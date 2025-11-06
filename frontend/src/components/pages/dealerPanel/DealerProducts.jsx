@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import DealerProductGroupList from './Dealers/components/DealerProductGroupList';
-import DealerQRScannerModal from '../global/DealerQRScannerModal';
-import SaleModal from './Dealers/components/SaleModal';
-import { createSale } from './Dealers/services/dealerSalesService';
+import DealerProductGroupList from '../Dealers/components/DealerProductGroupList';
+import DealerQRScannerModal from '../../global/DealerQRScannerModal';
+import SaleModal from '../Dealers/components/SaleModal';
+import { createSale } from '../Dealers/services/dealerSalesService';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/distributor-dealer-products/dealer`;
 

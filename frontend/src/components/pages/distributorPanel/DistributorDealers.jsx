@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useMemo, useContext } from 'react';
 import { Search, Plus, X, FilePenLine, Trash2, Box } from 'lucide-react';
-import ListComponent from '../global/ListComponent';
-import ErrorBoundary from '../global/ErrorBoundary';
+import ListComponent from '../../global/ListComponent';
+import ErrorBoundary from '../../global/ErrorBoundary';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 
 function DistributorDealers() {
     const { user } = useContext(AuthContext);

@@ -1,15 +1,25 @@
-import PDFDocument from 'pdfkit';
-import QRCode from 'qrcode';
-import { OrderItem } from '../models/Order.js';
-import fs from 'fs';
-import path from 'path';
-import archiver from 'archiver';
+/**
+ * PDF Generation Controller for Product Stickers
+ * This module handles the generation of product stickers in PDF format for different types of boxes
+ * and items. It supports single unit stickers, multi-unit box stickers, and combined PDFs.
+ */
 
-// Centralized configuration for sticker layout and fonts
+import PDFDocument from 'pdfkit';  // For PDF generation
+import QRCode from 'qrcode';       // For QR code generation
+import { OrderItem } from '../models/Order.js';  // Database model for order items
+import fs from 'fs';               // File system operations
+import path from 'path';          // Path manipulation
+import archiver from 'archiver';  // For creating ZIP archives
+
+/**
+ * Master configuration object for sticker layout and styling
+ * Contains all dimensions, fonts, spacing, and positioning information
+ * All measurements are in PDF points unless specified otherwise
+ */
 const stickerConfig = {
     width: 400,
     height: 250,
-    margin: 10,
+    margin: 8,
     font: {
         bold: 'Helvetica-Bold',
         regular: 'Helvetica',
@@ -55,7 +65,16 @@ const stickerConfig = {
     }
 };
 
+/**
+ * Cache for the logo image buffer to avoid repeated disk reads
+ */
 let logoBuffer = null;
+
+/**
+ * Loads and caches the company logo for use in stickers
+ * Uses a singleton pattern to load the logo only once and reuse it
+ * @returns {Buffer|null} The logo image buffer or null if loading fails
+ */
 const loadLogo = () => {
     if (logoBuffer) return logoBuffer;
     try {
@@ -66,8 +85,13 @@ const loadLogo = () => {
         return null;
     }
 };
-loadLogo(); // Pre-load
+loadLogo(); // Pre-load logo on module initialization
 
+/**
+ * Generates a QR code data URL from the provided data
+ * @param {Object} data - Data to encode in the QR code (serialNumber, model, orderId)
+ * @returns {Promise<string|null>} Data URL of the QR code or null if generation fails
+ */
 const generateQRCode = async (data) => {
     try {
         const stringData = JSON.stringify(data);
@@ -78,27 +102,72 @@ const generateQRCode = async (data) => {
     }
 };
 
-// This function remains the same, it's already correct.
+/**
+ * Generates a single sticker on the PDF document with 90-degree rotation
+ * Handles different types of stickers (individual, outer box) with proper positioning and content
+ * @param {PDFDocument} doc - PDFKit document instance
+ * @param {Object} options - Sticker generation options
+ * @param {string} options.type - Type of sticker ('individual', 'outer_Nunit', 'single_unit')
+ * @param {Array<OrderItem>} options.items - Order items for the sticker
+ * @param {Array<string>} options.qrCodes - Generated QR code data URLs
+ * @param {Object} options.model - Product model information
+ * @param {number} [options.startX=10] - Starting X position
+ * @param {number} [options.startY=10] - Starting Y position
+ */
 const generateBoxSticker = async (doc, { type, items, qrCodes, model, startX = 10, startY = 10 }) => {
     const { width, height, margin, font, logo, qr, columns, serialBoxes, footer } = stickerConfig;
 
-    doc.rect(startX, startY, width, height).stroke();
+    // Calculate center position on the page
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    
+    // After rotation, sticker width becomes height and vice versa
+    const rotatedStickerWidth = height;  // 250
+    const rotatedStickerHeight = width;  // 400
+    
+    // Calculate the top-left corner position to center the rotated sticker
+    const startXCentered = (pageWidth - rotatedStickerWidth) / 2;
+    const startYCentered = (pageHeight - rotatedStickerHeight) / 2;
+
+    // Save the current state
+    doc.save();
+    
+    // Move to where the rotated sticker should start (top-left of the centered position)
+    // Then move to the center of that sticker area for rotation
+    const rotationCenterX = startXCentered + rotatedStickerWidth / 2;
+    const rotationCenterY = startYCentered + rotatedStickerHeight / 2;
+    
+    // Translate to the rotation center point
+    doc.translate(rotationCenterX, rotationCenterY);
+    
+    // Rotate 90 degrees clockwise
+    doc.rotate(90);
+    
+    // Translate back by half of original dimensions (before rotation)
+    doc.translate(-width / 2, -height / 2);
+    
+    // Now draw everything at origin (0, 0) instead of (startX, startY)
+    // because we've already positioned via transformations
+    const drawStartX = 0;
+    const drawStartY = 0;
+
+    doc.rect(drawStartX, drawStartY, width, height).stroke();
     doc.font(font.bold);
     
-    const leftColX = startX + margin;
+    const leftColX = drawStartX + margin;
     const leftColWidth = width * columns.leftRatio;
-    const rightColX = startX + leftColWidth + columns.spacing;
+    const rightColX = drawStartX + leftColWidth + columns.spacing;
     const rightColWidth = width - leftColWidth - (margin * 2) - columns.spacing;
 
     // --- Left Column Content ---
-    let yPositionLeft = startY + margin + logo.yOffset;
+    let yPositionLeft = drawStartY + margin + logo.yOffset;
 
     const logoImage = loadLogo();
     if (logoImage) {
         doc.image(logoImage, leftColX + (leftColWidth - logo.width) / 2, yPositionLeft, { width: logo.width });
     }
 
-    yPositionLeft = startY + columns.leftTitleY;
+    yPositionLeft = drawStartY + columns.leftTitleY;
     doc.fontSize(font.sizes.title);
     ['SELF PRIMING', 'MONOBLOCK PUMP'].forEach(text => {
         doc.text(text, leftColX, yPositionLeft, { width: leftColWidth, align: 'center' });
@@ -119,7 +188,7 @@ const generateBoxSticker = async (doc, { type, items, qrCodes, model, startX = 1
     const serialBoxX = leftColX + (serialBoxes.boxWidthPadding / 2);
     
     const serialAreaTop = yPositionLeft;
-    const serialAreaBottom = startY + height - serialBoxes.serialAreaReserveFooter;
+    const serialAreaBottom = drawStartY + height - serialBoxes.serialAreaReserveFooter;
     const availableHeight = Math.max(0, serialAreaBottom - serialAreaTop);
     let totalBoxesH = items.length * serialBoxes.boxHeight + Math.max(0, items.length - 1) * serialBoxes.boxGap;
     let currentBoxGap = serialBoxes.boxGap;
@@ -138,7 +207,7 @@ const generateBoxSticker = async (doc, { type, items, qrCodes, model, startX = 1
     });
 
     // --- Right Column Content ---
-    let yPositionRight = startY + margin + qr.yOffset;
+    let yPositionRight = drawStartY + margin + qr.yOffset;
     const qrCodeWidth = qr.width;
     const qrCodeSpacing = qr.spacing;
 
@@ -157,7 +226,7 @@ const generateBoxSticker = async (doc, { type, items, qrCodes, model, startX = 1
     }
 
     // --- Specifications Section ---
-    yPositionRight = startY + columns.rightSpecsY;
+    yPositionRight = drawStartY + columns.rightSpecsY;
     const specsData = model?.specifications || {};
     let displayWeight = 'N/A';
     if (specsData.grossWeight) {
@@ -184,91 +253,125 @@ const generateBoxSticker = async (doc, { type, items, qrCodes, model, startX = 1
     specItems.forEach(([label, value]) => {
         if (label === 'MFG DATE') yPositionRight += 5;
         doc.font(font.bold).fontSize(font.sizes.specsLabel).text(label, rightColX, yPositionRight);
-        doc.font(font.regular).fontSize(font.sizes.specsValue).text(`: ${value}`, rightColX + columns.specLabelWidth, yPositionRight);
+        doc.font(font.bold).fontSize(font.sizes.specsValue).text(`: ${value}`, rightColX + columns.specLabelWidth, yPositionRight);
         yPositionRight += 16;
         if (label === 'MRP Rs.') {
-            doc.fontSize(font.sizes.taxNote).text('(Incl of all taxes)', rightColX, yPositionRight - 6);
+            doc.font(font.bold).fontSize(font.sizes.taxNote).text('(Incl of all taxes)', rightColX, yPositionRight - 6);
             yPositionRight += 2;
         }
     });
 
     // --- Footer ---
-    const footerY = startY + height - footer.yOffset;
+    const footerY = drawStartY + height - footer.yOffset;
     doc.fontSize(font.sizes.footer);
     [
         'MKTD BY - SUPER POWER ENERGY',
         'F-40, Road No. 2 VKI Industrial Area, Jaipur, Rajasthan - 302013',
         'Email : ujalaustomers@gmail.com | Service No - Delhi : 8595725671 , Others : 63769 11917'
     ].forEach((line, index) => {
-        doc.text(line, startX + margin, footerY + (index * footer.lineSpacing), { width: width - (margin * 2), align: 'center' });
+        doc.text(line, drawStartX + margin, footerY + (index * footer.lineSpacing), { width: width - (margin * 2), align: 'center' });
     });
+    
+    // Restore the transformation state
+    doc.restore();
 };
 
+/**
+ * Creates a new PDF document stream with the correct dimensions for stickers
+ * Configures the document for standard sticker size (100mm x 150mm)
+ * @returns {Object} Object containing the PDF document and a promise that resolves with the final buffer
+ */
 const createPdfStream = () => {
-    const doc = new PDFDocument({ size: [842, 595], layout: 'landscape', margin: 20 });
+    // Convert mm to points (1mm = 2.83465 points)
+    const mmToPoints = (mm) => mm * 2.83465;
+    
+    // Sticker dimensions: 100mm width x 150mm height (vertical orientation)
+    const stickerWidth = mmToPoints(100);  // ~283 points
+    const stickerHeight = mmToPoints(150); // ~425 points
+    
+    const doc = new PDFDocument({ 
+        size: [stickerWidth, stickerHeight],
+        margin: 0 
+    });
     const chunks = [];
     doc.on('data', chunks.push.bind(chunks));
     const promise = new Promise((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
     return { doc, promise };
 };
 
+/**
+ * Generates a PDF containing stickers for a specific box
+ * Handles both single-unit and multi-unit boxes, creating appropriate stickers for each case
+ * @param {string} boxKey - Identifier in format 'orderId-box-boxNumber'
+ * @returns {Promise<Buffer>} PDF document as a buffer
+ */
 const generatePDFForBox = async (boxKey) => {
-    // This function is still needed for single box downloads and remains unchanged
     const [orderId, , boxNumber] = boxKey.split('-');
     const orderItems = await OrderItem.find({ orderId, boxNumber: parseInt(boxNumber) }).populate('category').populate('model');
     if (!orderItems.length) throw new Error(`Box not found for key: ${boxKey}`);
 
     const { doc, promise } = createPdfStream();
     const model = orderItems[0].model;
-    const pageMargin = 20;
-    const stickerHeight = stickerConfig.height;
-    const verticalSpacing = 10;
-    let currentY = pageMargin;
-
-    const checkNewPage = (y) => {
-        if (y + stickerHeight > doc.page.height - pageMargin) {
-            doc.addPage();
-            return pageMargin;
-        }
-        return y;
-    };
+    
+    // Convert mm to points
+    const mmToPoints = (mm) => mm * 2.83465;
+    const gapBetweenStickers = mmToPoints(50); // 50mm gap
 
     const boxQrCodes = await Promise.all(
         orderItems.map(item => generateQRCode({ serialNumber: item.serialNumber, model: item.model?.name, orderId: item.orderId }))
     );
 
-    if (orderItems.length > 1) { // It's a multi-unit box
-        currentY = checkNewPage(currentY);
+    if (orderItems.length > 1) {
+        // First page: outer sticker
         await generateBoxSticker(doc, {
-            type: `outer_${orderItems.length}unit`, items: orderItems, qrCodes: boxQrCodes, model, startX: pageMargin, startY: currentY
+            type: `outer_${orderItems.length}unit`, 
+            items: orderItems, 
+            qrCodes: boxQrCodes, 
+            model, 
+            startX: 0, 
+            startY: 0
         });
+        
+        // Individual stickers - each on new page with gap
         for (let i = 0; i < orderItems.length; i++) {
-            currentY += stickerHeight + verticalSpacing;
-            currentY = checkNewPage(currentY);
+            doc.addPage();
             await generateBoxSticker(doc, {
-                type: 'individual', items: [orderItems[i]], qrCodes: [boxQrCodes[i], boxQrCodes[i]], model: orderItems[i].model, startX: pageMargin, startY: currentY
+                type: 'individual', 
+                items: [orderItems[i]], 
+                qrCodes: [boxQrCodes[i], boxQrCodes[i]], 
+                model: orderItems[i].model, 
+                startX: 0, 
+                startY: 0
             });
         }
-    } else { // It's a single-unit box -> generate only one individual sticker (1N)
-        currentY = checkNewPage(currentY);
+    } else {
+        // Single unit box - just one individual sticker
         await generateBoxSticker(doc, {
-            type: 'individual', items: [orderItems[0]], qrCodes: [boxQrCodes[0], boxQrCodes[0]], model, startX: pageMargin, startY: currentY
+            type: 'individual', 
+            items: [orderItems[0]], 
+            qrCodes: [boxQrCodes[0], boxQrCodes[0]], 
+            model, 
+            startX: 0, 
+            startY: 0
         });
-        currentY += stickerHeight + verticalSpacing;
     }
     doc.end();
     return promise;
 };
 
-// ## FIXED FUNCTION ##
+/**
+ * Generates a combined PDF containing stickers for multiple order items
+ * Groups items by box and generates appropriate stickers for each box
+ * @param {Array<OrderItem>} orderItems - Array of order items to generate stickers for
+ * @returns {Promise<Buffer>} Combined PDF document as a buffer
+ */
 const generateCombinedPDF = async (orderItems) => {
     const { doc, promise } = createPdfStream();
-    const pageMargin = 20;
-    const stickerHeight = stickerConfig.height;
-    const verticalSpacing = 10;
-    let currentY = pageMargin;
+    
+    // Convert mm to points
+    const mmToPoints = (mm) => mm * 2.83465;
+    const gapBetweenStickers = mmToPoints(50); // 50mm gap
 
-    // Step 1: Group items by their box key
     const groupedByBox = orderItems.reduce((acc, item) => {
         const boxKey = `${item.orderId}-box-${item.boxNumber}`;
         if (!acc[boxKey]) {
@@ -278,48 +381,56 @@ const generateCombinedPDF = async (orderItems) => {
         return acc;
     }, {});
 
-    const checkNewPage = (y) => {
-        if (y + stickerHeight > doc.page.height - pageMargin) {
-            doc.addPage();
-            return pageMargin;
-        }
-        return y;
-    };
+    let isFirstSticker = true;
 
-    // Step 2: Loop over each box group
     for (const boxKey in groupedByBox) {
         const itemsInBox = groupedByBox[boxKey];
-        const model = itemsInBox[0].model; // Assume model is consistent per box
+        const model = itemsInBox[0].model;
 
         const boxQrCodes = await Promise.all(
             itemsInBox.map(item => generateQRCode({ serialNumber: item.serialNumber, model: item.model?.name, orderId: item.orderId }))
         );
 
-        // Step 3: Apply the same logic as generatePDFForBox
-        if (itemsInBox.length > 1) { // It's a multi-unit box
-            currentY = checkNewPage(currentY);
-            // Generate the outer sticker for this box
+        if (itemsInBox.length > 1) {
+            // Outer sticker for multi-unit box
+            if (!isFirstSticker) doc.addPage();
+            isFirstSticker = false;
+            
             await generateBoxSticker(doc, {
-                type: `outer_${itemsInBox.length}unit`, items: itemsInBox, qrCodes: boxQrCodes, model, startX: pageMargin, startY: currentY
+                type: `outer_${itemsInBox.length}unit`, 
+                items: itemsInBox, 
+                qrCodes: boxQrCodes, 
+                model, 
+                startX: 0, 
+                startY: 0
             });
-            // Generate individual stickers for this box
+            
+            // Individual stickers for each item in the box
             for (let i = 0; i < itemsInBox.length; i++) {
-                currentY += stickerHeight + verticalSpacing;
-                currentY = checkNewPage(currentY);
+                doc.addPage();
                 await generateBoxSticker(doc, {
-                    type: 'individual', items: [itemsInBox[i]], qrCodes: [boxQrCodes[i], boxQrCodes[i]], model: itemsInBox[i].model, startX: pageMargin, startY: currentY
+                    type: 'individual', 
+                    items: [itemsInBox[i]], 
+                    qrCodes: [boxQrCodes[i], boxQrCodes[i]], 
+                    model: itemsInBox[i].model, 
+                    startX: 0, 
+                    startY: 0
                 });
             }
-        } else { // It's a single-unit box -> generate only one individual sticker (1N)
-            currentY = checkNewPage(currentY);
+        } else {
+            // Single unit box - just one individual sticker
+            if (!isFirstSticker) doc.addPage();
+            isFirstSticker = false;
+            
             await generateBoxSticker(doc, {
-                type: 'individual', items: [itemsInBox[0]], qrCodes: [boxQrCodes[0], boxQrCodes[0]], model, startX: pageMargin, startY: currentY
+                type: 'individual', 
+                items: [itemsInBox[0]], 
+                qrCodes: [boxQrCodes[0], boxQrCodes[0]], 
+                model, 
+                startX: 0, 
+                startY: 0
             });
-            // advance Y to reserve space before next box (kept for consistent separation between boxes)
-            currentY += stickerHeight + verticalSpacing;
         }
-        // Add a larger space between different boxes in the same PDF
-        currentY += stickerHeight + verticalSpacing;
     }
 
     doc.end();
@@ -327,6 +438,14 @@ const generateCombinedPDF = async (orderItems) => {
 };
 
 // --- API Controllers ---
+
+/**
+ * API endpoint to generate stickers PDF for a single box
+ * @route GET /api/stickers/box/:boxKey
+ * @param {string} req.params.boxKey - Box identifier
+ * @param {boolean} req.query.download - Whether to force download or display inline
+ * @returns {Buffer} PDF document
+ */
 export const generateBoxStickers = async (req, res) => {
     try {
         const { boxKey } = req.params;
@@ -340,6 +459,12 @@ export const generateBoxStickers = async (req, res) => {
     }
 };
 
+/**
+ * API endpoint to download multiple box stickers as a ZIP file
+ * @route POST /api/stickers/download-multiple
+ * @param {Array<string>} req.body.boxKeys - Array of box identifiers
+ * @returns {Buffer} ZIP file containing PDFs for each box
+ */
 export const downloadMultiplePDFs = async (req, res) => {
     try {
         const { boxKeys } = req.body;
@@ -366,6 +491,12 @@ export const downloadMultiplePDFs = async (req, res) => {
     }
 };
 
+/**
+ * API endpoint to download a combined PDF containing stickers for multiple items
+ * @route POST /api/stickers/download-combined
+ * @param {Array<string>} req.body.itemIds - Array of order item IDs
+ * @returns {Buffer} Combined PDF document
+ */
 export const downloadCombinedPDFs = async (req, res) => {
     try {
         const { itemIds } = req.body;
@@ -376,7 +507,6 @@ export const downloadCombinedPDFs = async (req, res) => {
         if (orderItems.length === 0) {
             return res.status(404).json({ message: 'No order items found' });
         }
-        // Call the newly fixed function
         const pdf = await generateCombinedPDF(orderItems);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="combined-stickers-${Date.now()}.pdf"`);

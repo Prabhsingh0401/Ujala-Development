@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { X, Eye, EyeOff, Check } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 
 export default function Notifications({ setTotalNotifications }) {
     const { user } = useContext(AuthContext);

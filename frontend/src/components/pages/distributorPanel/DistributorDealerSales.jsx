@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { X, Box } from 'lucide-react';
-import DealerProductGroupList from '../pages/Dealers/components/DealerProductGroupList';
+import DealerProductGroupList from '../../pages/Dealers/components/DealerProductGroupList';
 
 const getStatusColor = (status) => {
     switch (status) {

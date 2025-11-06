@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import DistributorProductGroupList from './Distributors/components/DistributorProductGroupList';
-import DistributorQRScannerModal from '../global/DistributorQRScannerModal';
-import { ProductFilters } from './Distributors/components/ProductFilters';
-import { groupProductsByConfiguration } from './Distributors/utils';
+import DistributorProductGroupList from '../Distributors/components/DistributorProductGroupList';
+import DistributorQRScannerModal from '../../global/DistributorQRScannerModal';
+import { ProductFilters } from '../Distributors/components/ProductFilters';
+import { groupProductsByConfiguration } from '../Distributors/utils';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/distributors`;
 

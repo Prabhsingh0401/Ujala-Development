@@ -1,28 +1,35 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Package } from 'lucide-react';
+import { Package, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/distributor-dealer-products/dealer`;
+const API_URL = `${import.meta.env.VITE_API_URL}/api/distributors`;
 
-export default function DealerDashboard() {
+export default function DistributorDashboard() {
     const { user } = useContext(AuthContext);
     const [productCount, setProductCount] = useState(0);
+    const [dealerCount, setDealerCount] = useState(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!user || !user.dealer) {
+            if (!user || !user.distributor) {
                 setLoading(false);
                 return;
             }
 
             setLoading(true);
             try {
-                const productsResponse = await axios.get(`${API_URL}/${user.dealer._id}/products`);
+                // Fetch product count
+                const productsResponse = await axios.get(`${API_URL}/${user.distributor._id}/products`);
                 setProductCount(productsResponse.data.length);
+
+                // Fetch dealer count
+                const dealersResponse = await axios.get(`${API_URL}/${user.distributor._id}/dealers`);
+                setDealerCount(dealersResponse.data.length);
+
             } catch (error) {
                 toast.error('Error fetching dashboard data');
                 console.error('Error fetching dashboard data:', error);
@@ -35,11 +42,14 @@ export default function DealerDashboard() {
     }, [user]);
 
     const cardData = [
-        { title: 'Total Products', count: productCount, icon: <Package className="w-5 h-5" />, bg: '#EF4444', path: '/dealer/products' },
+        { title: 'Total Products', count: productCount, icon: <Package className="w-5 h-5" />, bg: '#EF4444', path: '/distributor/products' },
+        { title: 'Total Dealers', count: dealerCount, icon: <Users className="w-5 h-5" />, bg: '#FB923C', path: '/distributor/dealers' },
     ];
 
     return (
-        <div className="p-4">            
+        <div className="p-4">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Distributor Dashboard</h1>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {cardData.map((card, index) => (
                     <Link to={card.path} key={index}>

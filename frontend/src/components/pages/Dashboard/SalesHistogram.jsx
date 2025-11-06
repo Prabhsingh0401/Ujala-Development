@@ -33,7 +33,19 @@ export default function SalesHistogram() {
         );
     }
 
-    const maxSales = Math.max(...data.map(item => item.sales), 1);
+    // Backend returns [{ _id: <monthNumber>, total: <sum> }].
+    // Build a 12-month array with labels and numeric sales to ensure stable rendering.
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthly = Array.from({ length: 12 }).map((_, i) => ({ month: monthNames[i], sales: 0 }));
+    data.forEach(item => {
+        const monthIndex = Number(item._id) - 1; // months from 1..12 in Mongo
+        if (monthIndex >= 0 && monthIndex < 12) {
+            monthly[monthIndex].sales = Number(item.total) || 0;
+        }
+    });
+
+    const normalized = monthly; // use the filled 12-month array
+    const maxSales = Math.max(...normalized.map(item => item.sales), 1);
     const yAxisMax = Math.ceil(maxSales / 10) * 10;
     const yAxisSteps = 5;
     const stepValue = yAxisMax / yAxisSteps;
@@ -65,7 +77,7 @@ export default function SalesHistogram() {
 
                     {/* Bars */}
                     <div className="relative h-full flex items-end justify-between px-1">
-                        {data.map((item, index) => {
+                        {normalized.map((item, index) => {
                             const height = maxSales > 0 ? (item.sales / maxSales) * 100 : 0;
                             return (
                                 <div key={index} className="flex flex-col items-center group">
@@ -87,7 +99,7 @@ export default function SalesHistogram() {
 
             {/* X-axis */}
             <div className="flex justify-between text-xs text-gray-500 mt-2 ml-12">
-                {data.map((item, index) => (
+                {normalized.map((item, index) => (
                     <div key={index} className="text-center w-8">
                         {item.month}
                     </div>

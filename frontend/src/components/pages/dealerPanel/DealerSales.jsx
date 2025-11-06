@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
-import { getDealerSales, updateSale, createSale } from './Dealers/services/dealerSalesService';
+import { AuthContext } from '../../../context/AuthContext';
+import { getDealerSales, updateSale, createSale } from '../Dealers/services/dealerSalesService';
 import { toast } from 'react-hot-toast';
-import EditSaleModal from './Dealers/components/EditSaleModal';
+import EditSaleModal from '../Dealers/components/EditSaleModal';
 import { Edit } from 'lucide-react';
-import SellQRScannerModal from '../global/SellQRScannerModal';
-import SaleModal from './Dealers/components/SaleModal';
+import SellQRScannerModal from '../../global/SellQRScannerModal';
+import SaleModal from '../Dealers/components/SaleModal';
 
 const DealerSales = () => {
     const { user } = useContext(AuthContext);

@@ -92,17 +92,18 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                             {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th> */}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Factory</th>
-                            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th> */}
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned to</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {groupedProducts.map((group) => {
                             const isAssigned = group.productsInBox.some(p => p.assignedTo);
+                            const isSold = group.productsInBox.every(p => p.sold);
                             return (
                                 <tr
                                     key={group._id}
-                                    className={`hover:bg-gray-50 ${isAssigned ? 'bg-gray-100 text-gray-500' : ''}`}
+                                    className={`hover:bg-gray-50 ${(isAssigned || isSold) ? 'bg-gray-100 text-gray-500' : ''}`}
                                 >
                                     {/* <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" data-label="Select">
                                         <input type="checkbox" onChange={(e) => handleSelectRow(e, group)} checked={selectedProductGroups && selectedProductGroups.some(g => g._id === group._id)} disabled={isAssigned} />
@@ -121,15 +122,27 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                                     {/* <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Category">{group.category?.name}</td> */}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Model">{group.model?.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Factory">{group.factory?.name}</td>
-                                    {/* <td className="px-6 py-4 whitespace-nowrap" data-label="Status">
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                            group.productsInBox[0]?.status === 'Active' 
-                                                ? 'bg-green-100 text-green-800' 
-                                                : 'bg-red-100 text-red-800'
-                                        }`}>
-                                            {group.productsInBox[0]?.status}
-                                        </span>
-                                    </td> */}
+                                    <td className="px-6 py-4 whitespace-nowrap" data-label="Status">
+                                        {(() => {
+                                            const allSold = group.productsInBox.every(p => p.sold);
+                                            const partiallySold = group.productsInBox.some(p => p.sold) && !allSold;
+                                            const firstStatus = group.productsInBox[0]?.status;
+                                            const pillClass = allSold
+                                                ? 'bg-red-100 text-red-800'
+                                                : partiallySold
+                                                    ? 'bg-yellow-100 text-yellow-800'
+                                                    : firstStatus === 'Active'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-red-100 text-red-800';
+                                            const label = allSold ? 'Sold' : partiallySold ? 'Partially Sold' : firstStatus || 'Not Sold';
+
+                                            return (
+                                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${pillClass}`}>
+                                                    {label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Assigned to">
                                         {isAssigned ? group.productsInBox[0].assignedTo : 'Not Assigned'}
                                     </td>

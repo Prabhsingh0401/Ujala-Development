@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCustomers, getCustomerPurchases } from '../services/customerService';
 import { toast } from 'react-hot-toast';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, X } from 'lucide-react';
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
@@ -90,69 +90,113 @@ export default function AdminCustomers() {
         )}
       </div>
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setModalOpen(false)}></div>
-          <div className="relative bg-white rounded-lg shadow-lg w-11/12 max-w-4xl p-6 z-10">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Purchases - {selectedCustomer?.name}</h2>
-              <button onClick={() => setModalOpen(false)} className="text-gray-500 hover:text-gray-800">Close</button>
+     {modalOpen && (
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-10">
+        <div
+          className="fixed inset-0 bg-black/40"
+          onClick={() => setModalOpen(false)}
+        ></div>
+
+        <div className="relative bg-white rounded-lg shadow-lg w-11/12 max-w-4xl p-6 z-10 overflow-y-auto h-[90vh]">
+          {/* Modal Header */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">
+              Purchases - {selectedCustomer?.name}
+            </h2>
+            <button
+              onClick={() => setModalOpen(false)}
+              className="text-gray-500 hover:text-gray-800"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Loading State */}
+          {pLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4d55f5] mx-auto"></div>
+              <p className="mt-4 text-gray-500">Loading purchases...</p>
             </div>
+          ) : purchases.length === 0 ? (
+            /* Empty State */
+            <div className="text-center py-8">
+              <ShoppingCart className="mx-auto h-16 w-16 text-gray-400" />
+              <h3 className="mt-4 text-lg font-medium text-gray-900">
+                No purchases
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                This customer hasn't bought any products yet.
+              </p>
+            </div>
+          ) : (
+            /* ✅ TABLE VIEW */
+            <div className="overflow-x-auto mt-4">
+              <table className="min-w-full border border-gray-200 divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50 text-left">
+                  <tr>
+                    <th className="px-4 py-2 font-medium text-gray-700">Product</th>
+                    <th className="px-4 py-2 font-medium text-gray-700">Serial No.</th>
+                    <th className="px-4 py-2 font-medium text-gray-700">Bought On</th>
+                    <th className="px-4 py-2 font-medium text-gray-700">Seller</th>
+                    <th className="px-4 py-2 font-medium text-gray-700">Plumber</th>
+                    <th className="px-4 py-2 font-medium text-gray-700">Warranty</th>
+                  </tr>
+                </thead>
 
-            {pLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4d55f5] mx-auto"></div>
-                <p className="mt-4 text-gray-500">Loading purchases...</p>
-              </div>
-            ) : purchases.length === 0 ? (
-              <div className="text-center py-8">
-                <ShoppingCart className="mx-auto h-16 w-16 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium text-gray-900">No purchases</h3>
-                <p className="mt-1 text-sm text-gray-500">This customer hasn't bought any products yet.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {purchases.map((sale) => {
-                  const productName = sale.product?.productName || sale.product?.model?.name || '-';
-                  const serial = sale.product?.serialNumber || '-';
-                  const soldAt = sale.soldAt ? new Date(sale.soldAt) : new Date(sale.createdAt);
-                  const sellerName = sale.dealer?.name || sale.distributor?.name || '-';
-                  const warranty = sale.warrantyInfo;
+                <tbody className="divide-y divide-gray-100">
+                  {purchases.map((sale) => {
+                    const productName =
+                      sale.product?.productName ||
+                      sale.product?.model?.name ||
+                      "-";
+                    const serial = sale.product?.serialNumber || "-";
+                    const soldAt = sale.soldAt
+                      ? new Date(sale.soldAt)
+                      : new Date(sale.createdAt);
+                    const sellerName =
+                      sale.dealer?.name || sale.distributor?.name || "-";
+                    const warranty = sale.warrantyInfo;
 
-                  return (
-                    <div key={sale._id} className="bg-white rounded-lg shadow p-4 flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="text-lg font-semibold text-gray-800">{productName}</div>
-                        <div className="text-sm text-gray-500 mt-1">S/N: {serial}</div>
-                      </div>
-                      <div className="w-40 text-right">
-                        <div className="text-sm text-gray-600">Bought:</div>
-                        <div className="text-sm font-medium text-gray-800">{soldAt ? soldAt.toLocaleDateString() : '-'}</div>
-                        <div className="mt-3 text-sm text-gray-600">From:</div>
-                        <div className="text-sm font-medium text-gray-800">{sellerName}</div>
-                        <div className="mt-2 text-sm text-gray-600">Plumber:</div>
-                        <div className="text-sm font-medium text-gray-800">{sale.plumberName || '-'}</div>
-                        <div className="mt-3">
+                    return (
+                      <tr key={sale._id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2">{productName}</td>
+                        <td className="px-4 py-2 text-gray-600">{serial}</td>
+                        <td className="px-4 py-2">{soldAt.toLocaleDateString()}</td>
+                        <td className="px-4 py-2">{sellerName}</td>
+                        <td className="px-4 py-2">{sale.plumberName || "-"}</td>
+                        <td className="px-4 py-2">
                           {warranty ? (
-                            <div>
-                              <div className={`inline-block px-2 py-1 rounded text-sm ${warranty.inWarranty ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {warranty.inWarranty ? 'In Warranty' : 'Warranty Expired'}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">Expires: {new Date(warranty.expiryDate).toLocaleDateString()}</div>
+                            <div className="flex flex-col">
+                              <span
+                                className={`px-2 py-1 rounded w-fit text-xs ${
+                                  warranty.inWarranty
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {warranty.inWarranty
+                                  ? "In Warranty"
+                                  : "Expired"}
+                              </span>
+                              <span className="text-xs text-gray-500 mt-1">
+                                Expires:{" "}
+                                {new Date(warranty.expiryDate).toLocaleDateString()}
+                              </span>
                             </div>
                           ) : (
-                            <div className="text-sm text-gray-500">No warranty</div>
+                            <span className="text-gray-500">No warranty</span>
                           )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 }
