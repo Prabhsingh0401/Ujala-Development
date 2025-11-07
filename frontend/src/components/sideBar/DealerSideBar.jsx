@@ -59,7 +59,7 @@ export function DealerSideBar({ sidebarOpen, toggleSidebar }) {
                         {sidebarOpen && (
                             <div className="flex items-center space-x-3">
                                 <div>
-                                    <div className="text-lg font-extrabold">Ujala</div>
+                                    <div className="text-lg font-extrabold">WarrenTech</div>
                                     <div className="text-xs text-white/80 -mt-1">Dealer Dashboard</div>
                                 </div>
                             </div>

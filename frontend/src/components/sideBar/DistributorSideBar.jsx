@@ -77,9 +77,9 @@ export function DistributorSideBar({ sidebarOpen, toggleSidebar }) {
                     >
                         {sidebarOpen && (
                             <div className="flex items-center space-x-3">
-                                {/* <img src="/Ujala_template_logo.png" alt="Ujala" className="w-10 h-10 object-contain" /> */}
+                                {/* <img src="/WarrenTech_template_logo.png" alt="WarrenTech" className="w-10 h-10 object-contain" /> */}
                                 <div>
-                                    <div className="text-lg font-extrabold">Ujala</div>
+                                    <div className="text-lg font-extrabold">WarrenTech</div>
                                     <div className="text-xs text-white/80 -mt-1">Distributor Dashboard</div>
                                 </div>
                             </div>

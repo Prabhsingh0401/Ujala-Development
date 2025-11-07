@@ -34,7 +34,7 @@ const stickerConfig = {
         }
     },
     logo: {
-        path: path.join(process.cwd(), 'public', 'Ujala_template_logo.png'),
+        path: path.join(process.cwd(), 'public', 'WarranTech_template_logo.png'),
         width: 100,
         yOffset: 0
     },
@@ -267,7 +267,7 @@ const generateBoxSticker = async (doc, { type, items, qrCodes, model, startX = 1
     [
         'MKTD BY - SUPER POWER ENERGY',
         'F-40, Road No. 2 VKI Industrial Area, Jaipur, Rajasthan - 302013',
-        'Email : ujalaustomers@gmail.com | Service No - Delhi : 8595725671 , Others : 63769 11917'
+        'Email : WarrenTechustomers@gmail.com | Service No - Delhi : 8595725671 , Others : 63769 11917'
     ].forEach((line, index) => {
         doc.text(line, drawStartX + margin, footerY + (index * footer.lineSpacing), { width: width - (margin * 2), align: 'center' });
     });

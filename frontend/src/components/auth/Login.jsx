@@ -135,7 +135,7 @@ export default function Login() {
         <div className="flex md:flex-row flex-col h-screen bg-gray-50">
             <div className="hidden md:flex w-1/2 bg-gradient-to-br from-[#5b189b] to-[#5b189b] text-white items-center justify-center p-12">
                 <div>
-                    <h1 className="text-3xl md:text-5xl font-bold mb-4">Ujala Dashboard</h1>
+                    <h1 className="text-3xl md:text-5xl font-bold mb-4">WarrenTech Dashboard</h1>
                     <p className="text-md md:text-lg text-gray-200">Streamlining factory and order management.</p>
                 </div>
             </div>
