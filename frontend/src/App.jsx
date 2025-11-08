@@ -30,6 +30,7 @@ import Notifications from './components/pages/notifications/Notifications'
 import AddMembers from './components/pages/AddMembers/index';
 import Unauthorized from './components/pages/AddMembers/Unauthorized';
 import ProtectedSection from './components/auth/ProtectedSection';
+import ProductDetails from './components/pages/ProductDetails';
 import { SideBar } from './components/sideBar/sideBar'
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthContext } from './context/AuthContext';
@@ -63,6 +64,7 @@ const App = () => {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/product/:serialNumber" element={<ProductDetails />} />
           <Route 
             path="/factory" 
             element={

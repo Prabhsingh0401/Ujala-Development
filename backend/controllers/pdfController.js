@@ -94,8 +94,8 @@ loadLogo(); // Pre-load logo on module initialization
  */
 const generateQRCode = async (data) => {
     try {
-        const stringData = JSON.stringify(data);
-        return await QRCode.toDataURL(stringData);
+        const url = `https://ujala-development.vercel.app/product/${data.serialNumber}`;
+        return await QRCode.toDataURL(url);
     } catch (error) {
         console.error('Error generating QR code:', error);
         return null;

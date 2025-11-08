@@ -1,4 +1,6 @@
 import { OrderItem } from '../models/Order.js';
+import Product from '../models/Product.js';
+import Sale from '../models/Sale.js';
 
 export const getProductDetails = async (req, res) => {
     try {
@@ -13,6 +15,28 @@ export const getProductDetails = async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
         
+        const product = await Product.findOne({ serialNumber });
+        let saleDetails = null;
+        let warrantyStatus = 'Not applicable';
+
+        if (product) {
+            const sale = await Sale.findOne({ product: product._id })
+                .populate('dealer')
+                .populate('distributor');
+            
+            if (sale) {
+                const saleDate = new Date(sale.saleDate);
+                const warrantyEndDate = new Date(saleDate.setFullYear(saleDate.getFullYear() + 1));
+                warrantyStatus = new Date() < warrantyEndDate ? 'Under Warranty' : 'Warranty Expired';
+
+                saleDetails = {
+                    soldBy: sale.dealer ? sale.dealer.name : (sale.distributor ? sale.distributor.name : 'Unknown'),
+                    saleDate: sale.saleDate,
+                    warrantyStatus,
+                };
+            }
+        }
+
         const productDetails = {
             serialNumber: orderItem.serialNumber,
             orderId: orderItem.orderId,
@@ -21,12 +45,12 @@ export const getProductDetails = async (req, res) => {
                 name: orderItem.model?.name,
                 specifications: orderItem.model?.specifications
             },
-            // Return both id and name so clients can validate ownership
             factory: orderItem.factory ? { id: orderItem.factory._id, name: orderItem.factory.name } : null,
             status: orderItem.status,
             orderType: orderItem.orderType,
             boxNumber: orderItem.boxNumber,
-            manufacturingDate: orderItem.createdAt
+            manufacturingDate: orderItem.createdAt,
+            ...saleDetails
         };
         
         res.json(productDetails);
