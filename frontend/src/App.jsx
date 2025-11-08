@@ -46,7 +46,7 @@ const AdminProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, isAdmin } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">
+    return <div className="flex items-center justify-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
     </div>;
   }
@@ -169,7 +169,7 @@ const Layout = ({ totalNotifications }) => {
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen">
+      <div className="flex h-full">
         <SideBar sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} hasNotifications={totalNotifications > 0} />
         <div className={`flex-grow overflow-y-auto transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-72' : 'ml-16'}`}>
           <Outlet />
@@ -183,7 +183,7 @@ const TechnicianProtectedRoute = ({ children }) => {
   const { isAuthenticated, user, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">
+    return <div className="flex items-center justify-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
     </div>;
   }
@@ -201,7 +201,7 @@ const FactoryProtectedRoute = ({ children }) => {
   const { isFactoryAuthenticated, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">
+    return <div className="flex items-center justify-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
     </div>;
   }
@@ -217,7 +217,7 @@ const DistributorProtectedRoute = ({ children }) => {
   const { isDistributorAuthenticated, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">
+    return <div className="flex items-center justify-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
     </div>;
   }
@@ -233,7 +233,7 @@ const DealerProtectedRoute = ({ children }) => {
   const { isDealerAuthenticated, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">
+    return <div className="flex items-center justify-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
     </div>;
   }
@@ -249,7 +249,7 @@ const CustomerProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, user } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">
+    return <div className="flex items-center justify-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
     </div>;
   }
@@ -266,7 +266,7 @@ const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">
+    return <div className="flex items-center justify-center h-full">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
     </div>;
   }

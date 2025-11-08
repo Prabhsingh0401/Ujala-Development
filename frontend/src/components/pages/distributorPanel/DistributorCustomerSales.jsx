@@ -81,7 +81,7 @@ export default function DistributorCustomerSales() {
     const currentItems = sales.slice(indexOfFirst, indexOfLast);
 
     return (
-        <div className="p-6 min-h-screen">
+        <div className="p-6 min-h-full">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>

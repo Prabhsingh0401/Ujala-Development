@@ -12,7 +12,7 @@ export default function TechnicianLayout() {
 
     return (
         <ErrorBoundary>
-            <div className="flex h-screen">
+            <div className="flex h-full">
                 <TechnicianSideBar sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
                 <div className={`flex-grow overflow-y-auto transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
                     <Outlet />

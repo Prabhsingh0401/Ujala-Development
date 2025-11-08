@@ -26,7 +26,7 @@ const ProductDetails = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
             </div>
         );
@@ -41,7 +41,7 @@ const ProductDetails = () => {
     }
 
     return (
-        <div className="bg-gray-100 min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="bg-gray-100 min-h-full p-4 sm:p-6 lg:p-8">
             <div className="max-w-4xl mx-auto">
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                     <div className="p-6 sm:p-8">

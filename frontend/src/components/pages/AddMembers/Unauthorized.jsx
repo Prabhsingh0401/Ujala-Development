@@ -6,7 +6,7 @@ export default function Unauthorized() {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="min-h-full flex items-center justify-center bg-gray-100">
             <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
                 <div className="mb-6">
                     <Shield className="h-16 w-16 text-red-500 mx-auto" />

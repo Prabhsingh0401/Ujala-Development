@@ -140,7 +140,7 @@ export default function Sales() {
 
     if (loading) {
         return (
-            <div className="p-4 lg:p-4 min-h-screen">
+            <div className="p-4 lg:p-4 min-h-full">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                     <div className="p-6">
                         <div className="flex items-center justify-center h-64">
@@ -153,7 +153,7 @@ export default function Sales() {
     }
 
     return (
-        <div className="p-4 lg:p-4 min-h-screen">
+        <div className="p-4 lg:p-4 min-h-full">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="p-4 lg:p-6">
                     <div className="space-y-4">

@@ -141,7 +141,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
   return (
     <>
       <aside
-        className={`fixed top-0 left-0 z-40 h-screen transition-all duration-300 ease-in-out text-white ${
+        className={`fixed top-0 left-0 z-40 h-full transition-all duration-300 ease-in-out text-white ${
           sidebarOpen ? 'w-68' : 'w-16'
         }`}
         aria-label="Sidebar"

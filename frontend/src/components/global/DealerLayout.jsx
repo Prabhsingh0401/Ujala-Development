@@ -10,7 +10,7 @@ const DealerLayout = () => {
     };
 
     return (
-        <div className="flex h-screen">
+        <div className="flex h-full">
             <DealerSideBar sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
             <div className={`flex-grow overflow-y-auto transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-68' : 'ml-16'}`}>
                 <Outlet />

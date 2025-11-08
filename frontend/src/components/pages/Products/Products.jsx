@@ -240,7 +240,7 @@ export default function Products() {
     }, [modelGroups, currentPage, itemsPerPage]);
 
     return (
-        <div className="p-4 lg:p-4 min-h-screen">
+        <div className="p-4 lg:p-4 min-h-full">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="p-4 lg:p-6">
                     <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between space-y-4 xl:space-y-0">
