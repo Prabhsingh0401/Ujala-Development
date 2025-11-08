@@ -1,63 +1,63 @@
 import { OrderItem } from '../models/Order.js';
 import Product from '../models/Product.js';
 import Sale from '../models/Sale.js';
+import DistributorDealerProduct from '../models/DistributorDealerProduct.js';
 
 export const getProductDetails = async (req, res) => {
     try {
         const { serialNumber } = req.params;
-        
-        const orderItem = await OrderItem.findOne({ serialNumber })
-            .populate('category')
+        console.log('Fetching details for serial number:', serialNumber);
+
+        const product = await Product.findOne({ serialNumber })
             .populate('model')
+            .populate('distributor')
             .populate('factory');
-        
-        if (!orderItem) {
+
+        console.log('Product query result:', product);
+
+        if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
-        
-        const product = await Product.findOne({ serialNumber });
-        let saleDetails = null;
-        let warrantyStatus = 'Not applicable';
 
-        if (product) {
-            const sale = await Sale.findOne({ product: product._id })
-                .populate('dealer')
-                .populate('distributor');
-            
-            if (sale) {
-                const saleDate = new Date(sale.saleDate);
-                const warrantyEndDate = new Date(saleDate.setFullYear(saleDate.getFullYear() + 1));
-                warrantyStatus = new Date() < warrantyEndDate ? 'Under Warranty' : 'Warranty Expired';
+        const productObj = product.toObject();
 
-                saleDetails = {
-                    soldBy: sale.dealer ? sale.dealer.name : (sale.distributor ? sale.distributor.name : 'Unknown'),
-                    saleDate: sale.saleDate,
-                    warrantyStatus,
-                };
-            }
+        const dealerAssignment = await DistributorDealerProduct.findOne({ product: product._id })
+            .populate('dealer');
+
+        console.log('Dealer assignment query result:', dealerAssignment);
+
+        if (dealerAssignment) {
+            productObj.dealer = dealerAssignment.dealer;
         }
 
-        const productDetails = {
-            serialNumber: orderItem.serialNumber,
-            orderId: orderItem.orderId,
-            category: orderItem.category?.name,
-            model: {
-                name: orderItem.model?.name,
-                specifications: orderItem.model?.specifications
-            },
-            factory: orderItem.factory ? { id: orderItem.factory._id, name: orderItem.factory.name } : null,
-            status: orderItem.status,
-            orderType: orderItem.orderType,
-            boxNumber: orderItem.boxNumber,
-            manufacturingDate: orderItem.createdAt,
-            ...saleDetails
-        };
+        const sale = await Sale.findOne({ product: product._id });
+
+        console.log('Sale query result:', sale);
+
+        if (sale) {
+            productObj.sale = {
+                customerName: sale.customerName || null,
+                customerPhone: sale.customerPhone || null,
+                customerEmail: sale.customerEmail || null,
+                soldAt: sale.soldAt || sale.saleDate || sale.createdAt || null,
+                _id: sale._id
+            };
+
+            const saleDate = new Date(sale.saleDate);
+            const warrantyEndDate = new Date(new Date(saleDate).setFullYear(saleDate.getFullYear() + 1));
+            productObj.warrantyStatus = new Date() < warrantyEndDate ? 'Under Warranty' : 'Warranty Expired';
+        } else {
+            productObj.warrantyStatus = 'Not applicable';
+        }
         
-        res.json(productDetails);
+        console.log('Final product object:', productObj);
+        res.json(productObj);
     } catch (error) {
+        console.error('Error in getProductDetails:', error);
         res.status(500).json({ message: error.message });
     }
 };
+
 
 export const updateProductStatus = async (req, res) => {
     try {

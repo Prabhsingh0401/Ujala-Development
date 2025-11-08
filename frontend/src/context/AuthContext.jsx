@@ -39,6 +39,7 @@ export const AuthProvider = ({ children }) => {
     const isFactoryAuthenticated = isAuthenticated && user.role === 'factory';
     const isDistributorAuthenticated = isAuthenticated && user.role === 'distributor';
     const isDealerAuthenticated = isAuthenticated && user.role === 'dealer';
+    const isTechnicianAuthenticated = isAuthenticated && user.role === 'technician';
 
     // Check if user has required privileges (support both `privileges` and `accessControl` keys)
     const _privs = user?.privileges || user?.accessControl || null;
@@ -69,6 +70,7 @@ export const AuthProvider = ({ children }) => {
             isFactoryAuthenticated,
             isDistributorAuthenticated,
             isDealerAuthenticated,
+            isTechnicianAuthenticated,
             login,
             logout,
             loading,

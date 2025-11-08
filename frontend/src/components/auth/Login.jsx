@@ -49,6 +49,13 @@ const userTypes = [
         description: 'Buyers and end customers',
         icon: Building,
         bg: '#06B6D4'
+    },
+    {
+        id: 'technician',
+        title: 'Technician',
+        description: 'Technician operations',
+        icon: Shield,
+        bg: '#10B981'
     }
 ];
 
@@ -105,6 +112,8 @@ export default function Login() {
                 navigate('/distributor/dashboard');
             } else if (selectedUserType === 'dealer') {
                 navigate('/dealer/dashboard');
+            } else if (selectedUserType === 'technician') {
+                navigate('/technician/requests');
             }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Login failed');
@@ -133,26 +142,26 @@ export default function Login() {
 
     return (
         <div className="flex md:flex-row flex-col h-screen bg-gray-50">
-            <div className="hidden md:flex w-1/2 bg-gradient-to-br from-[#5b189b] to-[#5b189b] text-white items-center justify-center p-12">
+            <div className="hidden md:flex w-1/4 bg-gradient-to-br from-[#5b189b] to-[#5b189b] text-white items-center justify-center p-12">
                 <div>
                     <h1 className="text-3xl md:text-5xl font-bold mb-4">WarrenTech Dashboard</h1>
                     <p className="text-md md:text-lg text-gray-200">Streamlining factory and order management.</p>
                 </div>
             </div>
-            <div className="w-full md:w-1/2 flex items-center justify-center p-8">
-                <div className="w-full max-w-2xl">
+            <div className="w-full md:w-3/4 flex items-center justify-center p-8">
+                <div className="w-full max-w-4xl">
                     {!selectedUserType ? (
                         <div>
                             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
                             <p className="text-gray-600 mb-8">Please select your user type to continue.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ">
                                 {userTypes.map((type) => {
                                     const Icon = type.icon;
                                     return (
                                         <button
                                             key={type.id}
                                             onClick={() => setSelectedUserType(type.id)}
-                                            className="rounded-xl shadow-card p-6 text-white transition-transform hover:scale-105 text-left"
+                                            className="rounded-xl shadow-card p-3 text-white transition-transform hover:scale-101 text-left"
                                             style={{ background: type.bg }}
                                         >
                                             <div className="flex items-start justify-between">
@@ -186,7 +195,7 @@ export default function Login() {
                                     <ArrowLeft className="w-5 h-5" />
                                 </button>
                                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                                    Welcome Back {selectedUserType === 'admin' ? 'Admin' : selectedUserType === 'member' ? 'Staff' : selectedUserType === 'factory' ? 'Factory' : selectedUserType === 'distributor' ? 'Distributor' : 'Dealer'}!
+                                    Welcome Back {selectedUserType === 'admin' ? 'Admin' : selectedUserType === 'member' ? 'Staff' : selectedUserType === 'factory' ? 'Factory' : selectedUserType === 'distributor' ? 'Distributor' : selectedUserType === 'dealer' ? 'Dealer' : 'Technician'}!
                                 </h2>
                             </div>
                             <p className="text-gray-600 mb-8">Please enter your credentials.</p>

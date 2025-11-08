@@ -10,6 +10,7 @@ import {
   Settings,
   ShoppingCart,
   ChevronDown,
+  RefreshCw,
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import NotificationIcon from '../global/NotificationIcon';
@@ -78,6 +79,18 @@ const sidebarItems = [
     icon: Users,
     color: 'teal',
   },
+  {
+    title: 'Replacement',
+    path: '/replacement',
+    icon: RefreshCw,
+    color: 'cyan',
+  },
+  {
+    title: 'Technicians',
+    path: '/technicians',
+    icon: Users,
+    color: 'pink',
+  },
 ];
 
 export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
@@ -96,6 +109,8 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
     '/customers': 'customers',
     '/add-members': 'management',
     '/sales': 'sales',
+    '/replacement': 'replacement',
+    '/technicians': 'technicians',
   };
 
   const canAccessSection = (section) => {

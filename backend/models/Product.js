@@ -70,7 +70,7 @@ const productSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Active', 'Inactive'],
+        enum: ['Active', 'Inactive', 'Replacement Requested'],
         default: 'Active'
     },
     sold: {

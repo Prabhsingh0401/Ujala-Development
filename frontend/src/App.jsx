@@ -30,7 +30,11 @@ import Notifications from './components/pages/notifications/Notifications'
 import AddMembers from './components/pages/AddMembers/index';
 import Unauthorized from './components/pages/AddMembers/Unauthorized';
 import ProtectedSection from './components/auth/ProtectedSection';
-import ProductDetails from './components/pages/ProductDetails';
+import ProductDetails from './components/pages/customer/components/ProductDetails.jsx';
+import Technician from './components/pages/Technician/Technician';
+import TechnicianLayout from './components/global/TechnicianLayout';
+import TechnicianRequests from './components/pages/Technician/TechnicianRequests';
+import Replacement from './components/pages/Replacement/Replacement';
 import { SideBar } from './components/sideBar/sideBar'
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthContext } from './context/AuthContext';
@@ -136,7 +140,19 @@ const App = () => {
             <Route path="distributors" element={<ProtectedSection section="distributors"><Distributors /></ProtectedSection>} />
             <Route path="dealers" element={<ProtectedSection section="dealers"><Dealers /></ProtectedSection>} />
             <Route path="customers" element={<ProtectedSection section="customers"><AdminCustomers /></ProtectedSection>} />
+            <Route path="replacement" element={<ProtectedSection section="replacement"><Replacement /></ProtectedSection>} />
+            <Route path="technicians" element={<ProtectedSection section="technicians"><Technician /></ProtectedSection>} />
             <Route path="unauthorized" element={<Unauthorized />} />
+          </Route>
+          <Route
+            path="/technician"
+            element={
+              <TechnicianProtectedRoute>
+                <TechnicianLayout />
+              </TechnicianProtectedRoute>
+            }
+          >
+            <Route path="requests" element={<TechnicianRequests />} />
           </Route>
         </Routes>
       </Router>
@@ -162,6 +178,22 @@ const Layout = ({ totalNotifications }) => {
     </ErrorBoundary>
   );
 }
+
+const TechnicianProtectedRoute = ({ children }) => {
+  const { isAuthenticated, user, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+    </div>;
+  }
+
+  if (!isAuthenticated || user?.role !== 'technician') {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
 
 
 
