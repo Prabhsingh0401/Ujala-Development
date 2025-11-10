@@ -8,7 +8,6 @@ import FactoryOrders from './components/pages/factoryPanel/factoryorder';
 import FactorySales from './components/pages/factoryPanel/FactorySales';
 import FactoryDashboard from './components/pages/factoryPanel/FactoryDashboard';
 import DistributorDashboard from './components/pages/distributorPanel/DistributorDashboard';
-import CustomerDashboard from './components/pages/customer/CustomerDashboard';
 import CustomerLayout from './components/global/CustomerLayout';
 import DistributorProducts from './components/pages/distributorPanel/DistributorProducts';
 import DistributorDealers from './components/pages/distributorPanel/DistributorDealers';
@@ -40,6 +39,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { AuthContext } from './context/AuthContext';
 import FactoryLayout from './components/global/FactoryLayout';
 import DistributorLayout from './components/global/DistributorLayout';
+import CustomerPurchases from './components/pages/customer/CustomerPurchases.jsx';
+import CustomerDashboard from './components/pages/customer/CustomerDashboard';
+import CustomerRequests from './components/pages/customer/CustomerRequests';
 
 
 const AdminProtectedRoute = ({ children }) => {
@@ -119,6 +121,8 @@ const App = () => {
             }
           >
             <Route path="dashboard" element={<CustomerDashboard />} />
+            <Route path="purchases" element={<CustomerPurchases />} />
+            <Route path="requests" element={<CustomerRequests />} />
           </Route>
 
           <Route 

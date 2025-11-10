@@ -1,13 +1,23 @@
 import { useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, LayoutDashboard, ShoppingCart, User } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, User, RefreshCw } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 
 const customerSidebarItems = [
     {
-        title: 'My Purchases',
+        title: 'Dashboard',
         path: '/customer/dashboard',
+        icon: LayoutDashboard,
+    },
+    {
+        title: 'My Purchases',
+        path: '/customer/purchases',
         icon: ShoppingCart,
+    },
+    {
+        title: 'Requests',
+        path: '/customer/requests',
+        icon: RefreshCw,
     },
     // {
     //     title: 'Profile',
