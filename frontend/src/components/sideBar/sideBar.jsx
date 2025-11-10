@@ -325,7 +325,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                           className="block"
                         >
                           <div
-                            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
                               active ? 'bg-white sidebar-pill' : 'bg-white/10'
                             }`}
                           >
@@ -341,7 +341,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                       ) : (
                         <Link to={item.path} className="block">
                           <div
-                            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
                               active ? 'bg-white sidebar-pill' : 'bg-white/10'
                             }`}
                           >
@@ -399,7 +399,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                 {user?.role === 'admin' && (
                   <Link to="/notifications" className="flex items-center justify-center">
                     <div
-                      className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
                         isActive('/notifications')
                           ? 'bg-white sidebar-pill'
                           : 'bg-white/10'
@@ -419,7 +419,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                 )}
                 <button
                   onClick={handleLogout}
-                  className="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95"
+                  className="w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95"
                 >
                   <LogOut className="w-4 h-4 text-white/90" />
                 </button>

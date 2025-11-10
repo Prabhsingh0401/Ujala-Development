@@ -49,7 +49,20 @@ export const createTechnician = async (req, res) => {
 
 export const getTechnicians = async (req, res) => {
     try {
-        const technicians = await Technician.find().populate('user', 'username');
+        const technicians = await Technician.find()
+            .populate('user', 'username')
+            .populate({
+                path: 'assignedRequests',
+                populate: [
+                    { 
+                        path: 'product',
+                        populate: {
+                            path: 'model'
+                        }
+                    },
+                    { path: 'customer' }
+                ]
+            });
         res.json(technicians);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -118,20 +131,15 @@ export const deleteTechnician = async (req, res) => {
 
 export const getAssignedRequests = async (req, res) => {
     try {
-        const technician = await Technician.findOne({ user: req.user.id });
-        if (!technician) {
-            return res.status(404).json({ message: 'Technician not found' });
-        }
-
-        const requests = await ReplacementRequest.find({ assignedTechnician: technician._id })
+        const requests = await ReplacementRequest.find({ assignedTechnician: req.user.id })
             .populate({
                 path: 'product',
-                select: 'name serialNumber',
+                populate: [
+                    { path: 'model', populate: { path: 'category' } },
+                    { path: 'category' }
+                ]
             })
-            .populate({
-                path: 'customer',
-                select: 'name',
-            });
+            .populate('customer', 'name phone email address city state');
 
         res.json(requests);
     } catch (error) {

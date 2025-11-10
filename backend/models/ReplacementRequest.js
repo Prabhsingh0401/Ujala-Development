@@ -17,10 +17,25 @@ const replacementRequestSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Approved', 'Rejected'],
+        enum: ['Pending', 'Approved', 'Rejected', 'Assigned'],
         default: 'Pending',
     },
-}, { timestamps: true });
+    assignedTechnician: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    },
+}, { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+});
+
+replacementRequestSchema.virtual('technician', {
+    ref: 'Technician',
+    localField: 'assignedTechnician',
+    foreignField: 'user',
+    justOne: true,
+});
 
 const ReplacementRequest = mongoose.model('ReplacementRequest', replacementRequestSchema);
 

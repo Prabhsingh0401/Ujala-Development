@@ -1,6 +1,7 @@
 import ReplacementRequest from '../models/ReplacementRequest.js';
 import Product from '../models/Product.js';
 import Sale from '../models/Sale.js';
+import Technician from '../models/Technician.js';
 
 export const createReplacementRequest = async (req, res) => {
     try {
@@ -63,7 +64,18 @@ export const getReplacementRequests = async (req, res) => {
                     path: 'model',
                 },
             })
-            .populate('customer');
+            .populate('customer')
+            .lean(); // Use lean to get plain JS objects
+
+        for (let i = 0; i < requests.length; i++) {
+            if (requests[i].assignedTechnician) {
+                const technician = await Technician.findOne({ user: requests[i].assignedTechnician });
+                if (technician) {
+                    requests[i].technician = technician;
+                }
+            }
+        }
+
         res.json(requests);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -79,7 +91,8 @@ export const getReplacementRequestsByCustomer = async (req, res) => {
                 populate: {
                     path: 'model',
                 },
-            });
+            })
+            .populate('technician');
         res.json(requests);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -89,7 +102,7 @@ export const getReplacementRequestsByCustomer = async (req, res) => {
 export const updateReplacementRequestStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, assignedTechnician } = req.body;
 
         const request = await ReplacementRequest.findById(id);
 
@@ -97,7 +110,20 @@ export const updateReplacementRequestStatus = async (req, res) => {
             return res.status(404).json({ message: 'Replacement request not found' });
         }
 
-        request.status = status;
+        if (assignedTechnician) {
+            request.status = 'Assigned';
+            request.assignedTechnician = assignedTechnician;
+
+            const technician = await Technician.findOne({ user: assignedTechnician });
+            if (technician) {
+                technician.assignedRequests.push(request._id);
+                await technician.save();
+            }
+
+        } else {
+            request.status = status;
+        }
+        
         await request.save();
 
         res.json(request);

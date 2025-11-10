@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Users, Plus, Edit, Trash2 } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Box, Search } from 'lucide-react';
+import AssignedRequestsModal from './AssignedRequestsModal';
 
-export default function Technician() {
+export default function Technicians() {
     const [technicians, setTechnicians] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [showRequestsModal, setShowRequestsModal] = useState(false);
     const [selectedTechnician, setSelectedTechnician] = useState(null);
+    const [selectedRequests, setSelectedRequests] = useState([]);
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
@@ -20,6 +23,7 @@ export default function Technician() {
     });
     const [states, setStates] = useState([]);
     const [cities, setCities] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const fetchStates = async () => {
         try {
@@ -49,6 +53,9 @@ export default function Technician() {
             fetchCities(formData.state);
         }
     }, [formData.state]);
+
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [currentPage, setCurrentPage] = useState(1);
 
     const fetchTechnicians = async () => {
         setLoading(true);
@@ -138,10 +145,36 @@ export default function Technician() {
         }
     };
 
+    const handleShowRequests = (requests) => {
+        setSelectedRequests(requests);
+        setShowRequestsModal(true);
+    };
+
+    // Filter technicians based on search query
+    const filteredTechnicians = technicians.filter(technician =>
+        Object.values(technician).some(value =>
+            String(value).toLowerCase().includes(searchQuery.toLowerCase())
+        ) ||
+        Object.values(technician.user).some(value =>
+            String(value).toLowerCase().includes(searchQuery.toLowerCase())
+        )
+    );
+
+    // Derived pagination values
+    const totalPages = Math.ceil(filteredTechnicians.length / itemsPerPage);
+    const paginatedTechnicians = filteredTechnicians.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
     return (
-        <div className="p-4">
+    <div className='p-4'>
+        <div className="p-6 bg-white mt-2 rounded-lg">
             <div className="flex justify-between items-center mb-4">
-                <h1 className="text-2xl font-semibold text-gray-800">Technicians</h1>
+                <div>
+                    <h1 className="text-2xl font-semibold text-gray-800">Technicians</h1>
+                    <p className="text-sm text-gray-500">Total {filteredTechnicians.length}</p>
+                </div>
                 <button
                     onClick={() => setShowAddModal(true)}
                     className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
@@ -151,12 +184,25 @@ export default function Technician() {
                 </button>
             </div>
 
+            <div className="mb-4">
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Search technicians..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-1/3 p-2 pl-10 border border-gray-300 rounded-md"
+                    />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                </div>
+            </div>
+
             {loading ? (
                 <div className="text-center py-20">
                     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-6 text-gray-500">Loading technicians...</p>
                 </div>
-            ) : technicians.length === 0 ? (
+            ) : filteredTechnicians.length === 0 ? (
                 <div className="text-center py-20">
                     <Users className="mx-auto h-16 w-16 text-gray-400" />
                     <h3 className="mt-4 text-lg font-medium text-gray-900">No technicians found</h3>
@@ -178,7 +224,7 @@ export default function Technician() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {technicians.map((technician) => (
+                            {paginatedTechnicians.map((technician) => (
                                 <tr key={technician._id}>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{technician.name}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.phone}</td>
@@ -186,7 +232,16 @@ export default function Technician() {
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.state}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.city}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.user.username}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.assignedRequests.length}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <button
+                                            onClick={() => handleShowRequests(technician.assignedRequests)}
+                                            className="text-indigo-600 hover:text-indigo-900 disabled:text-gray-400 flex items-center border p-1 rounded hover:bg-gray-200"
+                                            disabled={technician.assignedRequests.length === 0}
+                                        >
+                                            <Box className="h-4 w-4 mr-2"/>
+                                            {technician.assignedRequests.length} Requests
+                                        </button>
+                                    </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                                         <div className="flex items-center space-x-2">
                                             <button onClick={() => handleEditTechnician(technician)} className="text-indigo-600 hover:text-indigo-900"><Edit className="h-5 w-5" /></button>
@@ -197,6 +252,49 @@ export default function Technician() {
                             ))}
                         </tbody>
                     </table>
+                    <div className="px-6 py-3 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center md:justify-between gap-3 md:gap-0 rounded">
+                        <div className="flex items-center space-x-2">
+                            <span>Rows per page:</span>
+                            <select
+                                className="border border-gray-300 rounded px-2 py-1"
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="75">75</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+
+                        <div className="text-sm text-gray-700 hidden md:block">
+                            Showing {paginatedTechnicians.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredTechnicians.length)} of {filteredTechnicians.length} technicians
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                            >
+                                Previous
+                            </button>
+
+                            <span className="text-sm text-gray-700">Page {currentPage} of {totalPages}</span>
+
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -257,6 +355,13 @@ export default function Technician() {
                     </div>
                 </div>
             )}
+
+            <AssignedRequestsModal
+                isOpen={showRequestsModal}
+                onClose={() => setShowRequestsModal(false)}
+                requests={selectedRequests}
+            />
         </div>
+    </div>
     );
 }

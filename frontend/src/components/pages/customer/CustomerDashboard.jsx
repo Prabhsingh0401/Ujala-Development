@@ -157,6 +157,18 @@ export default function CustomerDashboard() {
                                     {request && request.status === 'Approved' && (
                                         <div className="mt-4 text-sm text-green-600">Replacement request approved</div>
                                     )}
+
+                                    {request && request.status === 'Assigned' && (
+                                        <div className="mt-4 text-sm text-blue-600 bg-gray-200 p-2 rounded">
+                                            <p className='font-semibold'>Your request has been assigned to a technician</p>
+                                            <p className="font-medium">Name: {request.technician.name}</p>
+                                            <p className="font-medium">Phone: {request.technician.phone}</p>
+                                        </div>
+                                    )}
+
+                                    {request && request.status === 'Rejected' && (
+                                        <div className="mt-4 text-sm text-red-600">Replacement request rejected</div>
+                                    )}
                                 </div>
                             </div>
                         );

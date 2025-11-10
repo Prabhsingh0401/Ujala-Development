@@ -2,6 +2,7 @@ import Customer from '../models/Customer.js';
 import Sale from '../models/Sale.js';
 import Product from '../models/Product.js';
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
 // GET /api/customers
 export const getCustomers = async (req, res) => {
@@ -83,6 +84,7 @@ export const getCustomerPurchases = async (req, res) => {
         if (model && Array.isArray(model.warranty) && model.warranty.length > 0) {
           const candidate = model.warranty.find(w => seller && w.state === seller.state && w.city === seller.city)
             || model.warranty.find(w => seller && w.state === seller.state)
+            // Fallback to the first defined warranty if no location match
             || model.warranty[0];
 
           if (candidate) {
@@ -106,6 +108,7 @@ export const getCustomerPurchases = async (req, res) => {
 
         return { ...sale, warrantyInfo };
       } catch (err) {
+        // In case of any error in warranty calculation, return the original sale object
         return sale;
       }
     });
@@ -115,4 +118,31 @@ export const getCustomerPurchases = async (req, res) => {
     console.error('Error fetching customer purchases:', error);
     res.status(500).json({ message: error.message });
   }
+};
+
+export const updateCustomerCredentials = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { phone, password } = req.body;
+
+        const customer = await Customer.findById(id);
+
+        if (!customer) {
+            return res.status(404).json({ message: 'Customer not found' });
+        }
+
+        if (phone) {
+            customer.phone = phone;
+        }
+
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            customer.password = await bcrypt.hash(password, salt);
+        }
+
+        const updatedCustomer = await customer.save();
+        res.json(updatedCustomer);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };
