@@ -1,39 +1,32 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { RefreshCw, Check, X } from 'lucide-react';
+import { RefreshCw, Check, X, Clock, UserCheck, CheckCircle, Paperclip, Eye, Loader, AlertTriangle } from 'lucide-react';
 import AssignTechnicianModal from './AssignTechnicianModal';
+import RequestDetailsModal from './RequestDetailsModal';
 
 export default function Replacement() {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
+    const [activeTab, setActiveTab] = useState('pending');
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [selectedRequestForDetails, setSelectedRequestForDetails] = useState(null);
 
-    // Pagination State
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-
-    // Derived pagination values
-    const totalPages = Math.ceil(requests.length / itemsPerPage);
-    const paginatedRequests = requests.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
 
     const fetchRequests = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/replacement-requests`, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
+                headers: { Authorization: `Bearer ${token}` }
             });
             setRequests(res.data);
         } catch (err) {
             toast.error('Error fetching replacement requests');
-            console.error('Error fetching replacement requests:', err);
         } finally {
             setLoading(false);
         }
@@ -50,13 +43,11 @@ export default function Replacement() {
             try {
                 const token = localStorage.getItem('token');
                 await axios.put(`${import.meta.env.VITE_API_URL}/api/replacement-requests/${id}`, { status }, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
+                    headers: { Authorization: `Bearer ${token}` }
                 });
                 toast.success(`Request ${status.toLowerCase()}`);
                 fetchRequests();
-            } catch (error) {
+            } catch {
                 toast.error('Failed to update request status');
             }
         }
@@ -65,156 +56,223 @@ export default function Replacement() {
     const handleAssignTechnician = async (id, technicianId) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`${import.meta.env.VITE_API_URL}/api/replacement-requests/${id}`, { assignedTechnician: technicianId }, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
+            await axios.put(
+                `${import.meta.env.VITE_API_URL}/api/replacement-requests/${id}`,
+                { assignedTechnician: technicianId },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             toast.success('Technician assigned successfully');
             fetchRequests();
             setIsModalOpen(false);
             setSelectedRequest(null);
-        } catch (error) {
+        } catch {
             toast.error('Failed to assign technician');
         }
     };
 
-    return (
-    <div className='p-4'>
-        <div className="p-4 bg-white mt-2 rounded-lg">
-            <h1 className="text-xl font-semibold text-gray-800">Replacement Requests</h1>
-            <p className='mb-4'>Total {requests.length}</p>
+    const handleViewDetails = (request) => {
+        setSelectedRequestForDetails(request);
+        setIsDetailsModalOpen(true);
+    };
 
-            {loading ? (
-                <div className="text-center py-20">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-6 text-gray-500">Loading requests...</p>
+    const filteredRequests = requests.filter(req => {
+        if (activeTab === 'pending') return req.status === 'Pending';
+        if (activeTab === 'assigned') return req.status === 'Assigned';
+        if (activeTab === 'inProgress') return req.status === 'In Progress';
+        if (activeTab === 'replacementRequired') return req.status === 'Replacement Required';
+        if (activeTab === 'completed') return req.status === 'Completed' || req.status === 'Rejected';
+        return true;
+    });
+
+    const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+    const paginatedRequests = filteredRequests.slice(
+        (currentPage - 1) * itemsPerPage, currentPage * itemsPerPage
+    );
+
+    const TabButton = ({ id, label, icon: Icon, isActive, onClick }) => (
+        <button
+            onClick={() => onClick(id)}
+            className={`flex items-center px-6 py-3 font-medium text-sm rounded-lg transition 
+                ${isActive ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'}`}
+        >
+            <Icon className="w-4 h-4 mr-2" />
+            {label}
+        </button>
+    );
+
+    return (
+        <div className="p-4">
+            <div className="p-4 bg-white mt-2 rounded-lg">
+                <h1 className="text-xl font-semibold text-gray-800 mb-4">Replacement Requests</h1>
+
+                {/* Tabs */}
+                <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+                    <TabButton id="pending" label="Pending" icon={Clock} isActive={activeTab === 'pending'} onClick={setActiveTab} />
+                    <TabButton id="assigned" label="Assigned" icon={UserCheck} isActive={activeTab === 'assigned'} onClick={setActiveTab} />
+                    <TabButton id="inProgress" label="In Progress" icon={Loader} isActive={activeTab === 'inProgress'} onClick={setActiveTab} />
+                    <TabButton id="replacementRequired" label="Replacement Required" icon={AlertTriangle} isActive={activeTab === 'replacementRequired'} onClick={setActiveTab} />
+                    <TabButton id="completed" label="Completed" icon={CheckCircle} isActive={activeTab === 'completed'} onClick={setActiveTab} />
                 </div>
-            ) : requests.length === 0 ? (
-                <div className="text-center py-20">
-                    <RefreshCw className="mx-auto h-16 w-16 text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">No replacement requests</h3>
-                    <p className="mt-1 text-sm text-gray-500">New replacement requests will appear here.</p>
-                </div>
-            ) : (
-                <>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 rounded">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</th>
-                                    
-                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Technician</th>
-                                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                                                </tr>
-                                                            </thead>
-                                    
-                                                            <tbody className="bg-white divide-y divide-gray-200">
-                                                                {paginatedRequests.map((request) => (
-                                                                    <tr key={request._id}>
-                                                                        <td className="px-4 py-4 text-sm font-medium text-gray-900">{request.product?.model?.name || 'N/A'}</td>
-                                                                        <td className="px-4 py-4 text-sm text-gray-500">{request.product?.serialNumber || 'N/A'}</td>
-                                                                        <td className="px-4 py-4 text-sm text-gray-500">{request.customer?.name || 'N/A'}</td>
-                                                                        <td className="px-4 py-4 text-sm text-gray-500">{new Date(request.createdAt).toLocaleDateString()}</td>
-                                                                        <td className="px-4 py-4 text-sm text-gray-500">{request.reason}</td>
-                                    
-                                                                        <td className="px-4 py-4 whitespace-nowrap">
-                                                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                                                request.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                                                request.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                                                                request.status === 'Assigned' ? 'bg-blue-100 text-blue-800' :
-                                                                                'bg-red-100 text-red-800'
-                                                                            }`}>
-                                                                                {request.status}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="px-4 py-4 text-sm text-gray-500">{request.technician?.name || 'N/A'}</td>
-                                                                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                                                                            <div className="flex items-center space-x-2">
-                                                                                <button 
-                                                                                    onClick={() => handleStatusUpdate(request._id, 'Approved')} 
-                                                                                    className="text-green-600 hover:text-green-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-                                                                                    disabled={request.status !== 'Pending'}
-                                                                                >
-                                                                                    <Check className="h-5 w-5" />
-                                                                                </button>
-                                                                                <button 
-                                                                                    onClick={() => handleStatusUpdate(request._id, 'Rejected')} 
-                                                                                    className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-                                                                                    disabled={request.status !== 'Pending'}
-                                                                                >
-                                                                                    <X className="h-5 w-5" />
-                                                                                </button>
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
+
+                {loading ? (
+                    <div className="text-center py-20">
+                        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="mt-6 text-gray-500">Loading requests...</p>
+                    </div>
+                ) : filteredRequests.length === 0 ? (
+                    <div className="text-center py-20">
+                        <RefreshCw className="mx-auto h-16 w-16 text-gray-400" />
+                        <h3 className="mt-4 text-lg font-medium text-gray-900">No {activeTab} replacement requests</h3>
+                        <p className="mt-1 text-sm text-gray-500">New replacement requests will appear here.</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* TABLE */}
+                        <div className="overflow-x-auto">
+                            <div className="min-w-[1500px]"> {/* Prevents table compression */}
+                                <table className="min-w-full divide-y divide-gray-200 rounded-lg table-auto">
+                                    <thead className="bg-gray-100">
+                                        <tr>
+                                            {[
+                                                "Product", "Serial Number", "Customer",
+                                                "Warranty Status", "Assigned Technician", "Actions"
+                                            ].map((header, idx) => (
+                                                <th
+                                                    key={idx}
+                                                    className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase"
+                                                >
+                                                    {header}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {paginatedRequests.map((request) => (
+                                            <tr
+                                                key={request._id}
+                                                className="hover:bg-gray-50 transition"
+                                            >
+                                                <td className="px-6 py-4 text-sm font-medium text-gray-900 line-clamp-1">
+                                                    {request.product?.model?.name || 'N/A'}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-600">
+                                                    {request.product?.serialNumber || 'N/A'}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-600">
+                                                    <div>{request.customer?.name || 'N/A'}</div>
+                                                    <div className="text-xs text-gray-500">{request.customer?.phone || 'N/A'}</div>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm">
+                                                    {request.warrantyInfo ? (
+                                                        <span className={`font-semibold ${request.warrantyInfo.inWarranty ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {request.warrantyInfo.inWarranty ? 'Active' : 'Expired'}
+                                                        </span>
+                                                    ) : 'N/A'}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-600">
+                                                    {request.technician?.name || 'N/A'}
+                                                </td>
+
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center space-x-3">
+                                                        <button onClick={() => handleViewDetails(request)} className="text-gray-500 hover:text-indigo-600">
+                                                            <Eye className="h-5 w-5" />
+                                                        </button>
+                                                        {request.status === 'Pending' ? (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => handleStatusUpdate(request._id, 'Approved')}
+                                                                    className="text-green-600 hover:text-green-800"
+                                                                >
+                                                                    <Check className="h-5 w-5" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleStatusUpdate(request._id, 'Rejected')}
+                                                                    className="text-red-600 hover:text-red-800"
+                                                                >
+                                                                    <X className="h-5 w-5" />
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Check className="h-5 w-5 text-gray-300" />
+                                                                <X className="h-5 w-5 text-gray-300" />
+                                                            </>
+                                                        )}
                                                     </div>
-                                    
-                                                    {/* ✅ Pagination UI */}
-                                                    <div className="px-6 py-3 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center md:justify-between gap-3 md:gap-0 rounded">
-                                                        <div className="flex items-center space-x-2">
-                                                            <span>Rows per page:</span>
-                                                            <select
-                                                                className="border border-gray-300 rounded px-2 py-1"
-                                                                value={itemsPerPage}
-                                                                onChange={(e) => {
-                                                                    setItemsPerPage(Number(e.target.value));
-                                                                    setCurrentPage(1);
-                                                                }}
-                                                            >
-                                                                <option value="10">10</option>
-                                                                <option value="25">25</option>
-                                                                <option value="50">50</option>
-                                                                <option value="75">75</option>
-                                                                <option value="100">100</option>
-                                                            </select>
-                                                        </div>
-                                    
-                                                        <div className="text-sm text-gray-700 hidden md:block">
-                                                            Showing {paginatedRequests.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, requests.length)} of {requests.length} requests
-                                                        </div>
-                                    
-                                                        <div className="flex items-center space-x-2">
-                                                            <button
-                                                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                                                disabled={currentPage === 1}
-                                                                className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
-                                                            >
-                                                                Previous
-                                                            </button>
-                                    
-                                                            <span className="text-sm text-gray-700">Page {currentPage} of {totalPages}</span>
-                                    
-                                                            <button
-                                                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                                                disabled={currentPage === totalPages}
-                                                                className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
-                                                            >
-                                                                Next
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                    
-                                            <AssignTechnicianModal
-                                                isOpen={isModalOpen}
-                                                onClose={() => {
-                                                    setIsModalOpen(false);
-                                                    setSelectedRequest(null);
-                                                }}
-                                                request={selectedRequest}
-                                                onAssign={handleAssignTechnician}
-                                            />
-                                        </div>
-                                    </div>
-                                );
-                            }
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* PAGINATION */}
+                        <div className="px-6 py-3 bg-white border-t border-gray-200 flex flex-col md:flex-row items-center md:justify-between gap-3 rounded">
+                            <div className="flex items-center space-x-2">
+                                <span>Rows per page:</span>
+                                <select
+                                    className="border border-gray-300 rounded px-2 py-1"
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(Number(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    {[10, 25, 50, 75, 100].map(n => (
+                                        <option value={n} key={n}>{n}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="hidden md:block text-sm text-gray-700">
+                                Showing {paginatedRequests.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to{' '}
+                                {Math.min(currentPage * itemsPerPage, filteredRequests.length)} of {filteredRequests.length} requests
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                                >
+                                    Previous
+                                </button>
+
+                                <span className="text-sm text-gray-700">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                <AssignTechnicianModal
+                    isOpen={isModalOpen}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setSelectedRequest(null);
+                    }}
+                    request={selectedRequest}
+                    onAssign={handleAssignTechnician}
+                />
+
+                <RequestDetailsModal
+                    isOpen={isDetailsModalOpen}
+                    onClose={() => setIsDetailsModalOpen(false)}
+                    request={selectedRequestForDetails}
+                />
+            </div>
+        </div>
+    );
+}

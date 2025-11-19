@@ -1,5 +1,7 @@
 import DistributorDealerProduct from '../models/DistributorDealerProduct.js';
 import Sale from '../models/Sale.js';
+import Product from '../models/Product.js';
+import Customer from '../models/Customer.js';
 
 export const getDealerSales = async (req, res) => {
     try {
@@ -34,6 +36,76 @@ export const getCustomerSales = async (req, res) => {
 
         res.json(sales);
     } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const sellToCustomer = async (req, res) => {
+    try {
+        const { productIds, distributorId, customerName, customerPhone, customerAddress, customerEmail, customerState, customerCity, plumberName, plumberPhone } = req.body;
+
+        if (!productIds || productIds.length === 0 || !distributorId || !customerName || !customerPhone) {
+            return res.status(400).json({ message: 'Missing required sale details.' });
+        }
+
+        // Find or create customer
+        let customer = await Customer.findOne({ phone: customerPhone });
+        if (!customer) {
+            customer = await Customer.create({
+                name: customerName,
+                phone: customerPhone,
+                address: customerAddress,
+                email: customerEmail,
+                state: customerState,
+                city: customerCity
+            });
+        }
+
+        const salesRecords = [];
+        for (const productId of productIds) {
+            const product = await Product.findById(productId);
+
+            if (!product) {
+                console.warn(`Product with ID ${productId} not found.`);
+                continue;
+            }
+
+            if (product.sold) {
+                console.warn(`Product with ID ${productId} is already sold.`);
+                continue;
+            }
+
+            // Create Sale record
+            const sale = await Sale.create({
+                product: productId,
+                distributor: distributorId,
+                customerName,
+                customerPhone,
+                customerAddress,
+                customerEmail,
+                customerState,
+                customerCity,
+                plumberName,
+                plumberPhone,
+                customer: customer._id,
+                saleDate: new Date(),
+            });
+            salesRecords.push(sale);
+
+            // Update Product status
+            product.sold = true;
+            product.saleDate = new Date();
+            await product.save();
+        }
+
+        if (salesRecords.length === 0) {
+            return res.status(400).json({ message: 'No products were sold.' });
+        }
+
+        res.status(200).json({ message: `${salesRecords.length} products sold successfully.`, sales: salesRecords });
+
+    } catch (error) {
+        console.error('Error selling to customer:', error);
         res.status(500).json({ message: error.message });
     }
 };

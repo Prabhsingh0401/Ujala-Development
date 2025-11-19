@@ -22,7 +22,12 @@ export const getDealerProducts = async (req, res) => {
         const { dealerId } = req.params;
 
         const products = await DistributorDealerProduct.find({ dealer: dealerId })
-            .populate('product')
+            .populate({
+                path: 'product',
+                populate: {
+                    path: 'model'
+                }
+            })
             .populate('distributor');
             
         res.json(products);

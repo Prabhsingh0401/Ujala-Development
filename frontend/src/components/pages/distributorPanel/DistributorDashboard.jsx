@@ -2,14 +2,14 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Package, Users } from 'lucide-react';
+import { Package, Users } from 'lucide-react'; // Removed CheckCircle
 import { Link } from 'react-router-dom';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/distributors`;
 
 export default function DistributorDashboard() {
     const { user } = useContext(AuthContext);
-    const [productCount, setProductCount] = useState(0);
+    const [productCount, setProductCount] = useState(0); // This will now store available products
     const [dealerCount, setDealerCount] = useState(0);
     const [loading, setLoading] = useState(true);
 
@@ -22,9 +22,11 @@ export default function DistributorDashboard() {
 
             setLoading(true);
             try {
-                // Fetch product count
+                // Fetch products and filter for available ones
                 const productsResponse = await axios.get(`${API_URL}/${user.distributor._id}/products`);
-                setProductCount(productsResponse.data.length);
+                const products = productsResponse.data;
+                const availableProducts = products.filter(p => !p.sold && !p.assignedTo);
+                setProductCount(availableProducts.length); // Set productCount to available products
 
                 // Fetch dealer count
                 const dealersResponse = await axios.get(`${API_URL}/${user.distributor._id}/dealers`);
@@ -42,7 +44,7 @@ export default function DistributorDashboard() {
     }, [user]);
 
     const cardData = [
-        { title: 'Total Products', count: productCount, icon: <Package className="w-5 h-5" />, bg: '#EF4444', path: '/distributor/products' },
+        { title: 'Available Products', count: productCount, icon: <Package className="w-5 h-5" />, bg: '#EF4444', path: '/distributor/products' }, // Updated title
         { title: 'Total Dealers', count: dealerCount, icon: <Users className="w-5 h-5" />, bg: '#FB923C', path: '/distributor/dealers' },
     ];
 

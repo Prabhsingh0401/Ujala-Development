@@ -24,20 +24,44 @@ export const getDistributors = async (req, res) => {
             { $match: matchQuery },
             {
                 $lookup: {
-                    from: 'products', // The collection name for Product model
-                    localField: '_id',
-                    foreignField: 'distributor',
-                    as: 'assignedProducts'
+                    from: 'products',
+                    let: { distributorId: '$_id' },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ['$distributor', '$$distributorId'] },
+                                        { $eq: ['$sold', false] }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: 'distributordealerproducts',
+                                localField: '_id',
+                                foreignField: 'product',
+                                as: 'dealerAssignment'
+                            }
+                        },
+                        {
+                            $match: {
+                                'dealerAssignment': { $size: 0 }
+                            }
+                        }
+                    ],
+                    as: 'availableProducts'
                 }
             },
             {
                 $addFields: {
-                    productCount: { $size: '$assignedProducts' }
+                    productCount: { $size: '$availableProducts' }
                 }
             },
             {
                 $project: {
-                    assignedProducts: 0 // Exclude the actual products array if not needed
+                    availableProducts: 0 // Exclude the actual products array if not needed
                 }
             },
             { $sort: { createdAt: -1 } }

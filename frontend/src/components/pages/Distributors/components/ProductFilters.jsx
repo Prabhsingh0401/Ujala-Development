@@ -1,11 +1,9 @@
-import { Search, Building, Package } from 'lucide-react';
+import { Search, Package } from 'lucide-react'; // Removed Building icon
 import { FilterGroup, FilterItem, FilterSelector } from '../../../global/FilterGroup';
 
 export function ProductFilters({
   searchTerm,
   onSearchChange,
-  factoryFilter,
-  onFactoryFilterChange,
   modelFilter,
   onModelFilterChange,
   startSerialNumber,
@@ -14,7 +12,6 @@ export function ProductFilters({
   onEndSerialNumberChange,
   onSelectRange,
   onClearRange,
-  factories,
   models,
   onClearFilters
 }) {
@@ -32,15 +29,6 @@ export function ProductFilters({
               className="w-full pl-10 pr-4 py-2.5 border border-gray-200 bg-gray-50 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-sm"
             />
           </div>
-        </FilterItem>
-        <FilterItem>
-          <FilterSelector
-            value={factoryFilter}
-            onChange={onFactoryFilterChange}
-            options={factories}
-            placeholder="All Factories"
-            icon={Building}
-          />
         </FilterItem>
         <FilterItem>
           <FilterSelector

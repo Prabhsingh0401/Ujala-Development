@@ -1,12 +1,14 @@
 import { useState, useContext } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Eye, EyeOff, ArrowLeft, X } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 
 export default function CustomerAuth({ onBack }) {
     const [mode, setMode] = useState('login'); // 'login' or 'register'
+    const [step, setStep] = useState('enterPhone'); // 'enterPhone', 'setPassword'
+    const [customerData, setCustomerData] = useState(null);
 
     // Login state
     const [phone, setPhone] = useState('');
@@ -15,10 +17,7 @@ export default function CustomerAuth({ onBack }) {
     const [loading, setLoading] = useState(false);
 
     // Register state
-    const [name, setName] = useState('');
     const [regPhone, setRegPhone] = useState('');
-    const [email, setEmail] = useState('');
-    const [address, setAddress] = useState('');
     const [regPassword, setRegPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [registering, setRegistering] = useState(false);
@@ -41,7 +40,6 @@ export default function CustomerAuth({ onBack }) {
             if (user) {
                 login(user);
                 toast.success('Signed in successfully');
-                // Redirect customers to their dashboard
                 navigate('/customer/dashboard');
             } else {
                 toast.error('Invalid response from server');
@@ -53,48 +51,122 @@ export default function CustomerAuth({ onBack }) {
         }
     };
 
-    const validateRegister = () => {
-        if (!name || !regPhone || !email || !address || !regPassword || !confirmPassword) {
-            toast.error('Please fill all fields');
-            return false;
-        }
-        if (regPassword !== confirmPassword) {
-            toast.error('Passwords do not match');
-            return false;
-        }
-        if (regPhone.length < 6) {
-            toast.error('Please provide a valid phone number');
-            return false;
-        }
-        return true;
-    };
-
-    const handleRegister = async (e) => {
+    const handleCheckPhone = async (e) => {
         e.preventDefault();
-        if (!validateRegister()) return;
+        if (!regPhone) {
+            toast.error('Please enter your phone number.');
+            return;
+        }
         setRegistering(true);
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/customer/register`, {
-                name,
-                phone: regPhone,
-                email,
-                address,
-                password: regPassword
-            });
-            const user = res.data?.user;
-            if (user) {
-                // Auto-login newly registered customer
-                login(user);
-                toast.success('Account created');
-                navigate('/customer/dashboard');
-            } else {
-                toast.success('Registration successful');
+            const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/customers/check-phone`, { phone: regPhone });
+            if (res.data.hasPassword) {
+                toast.error('An account with this phone number already exists. Please log in.');
+                setPhone(regPhone);
                 setMode('login');
+            } else {
+                setCustomerData(res.data);
+                setStep('setPassword');
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Registration failed');
+            toast.error(err.response?.data?.message || 'Error checking phone number.');
         } finally {
             setRegistering(false);
+        }
+    };
+
+    const handleSetPassword = async (e) => {
+        e.preventDefault();
+        if (regPassword !== confirmPassword) {
+            toast.error('Passwords do not match.');
+            return;
+        }
+        if (regPassword.length < 6) {
+            toast.error('Password must be at least 6 characters long.');
+            return;
+        }
+        setRegistering(true);
+        try {
+            await axios.post(`${import.meta.env.VITE_API_URL}/api/customers/set-password`, {
+                phone: regPhone,
+                password: regPassword
+            });
+            toast.success('Password set successfully! Please log in.');
+            setPhone(regPhone);
+            setPassword('');
+            setMode('login');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to set password.');
+        } finally {
+            setRegistering(false);
+        }
+    };
+
+    const renderRegisterForm = () => {
+        if (step === 'enterPhone') {
+            return (
+                <form onSubmit={handleCheckPhone}>
+                    <div className="mb-4">
+                        <label className="block text-gray-700 text-sm font-medium mb-2">Phone Number</label>
+                        <input
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                            type="text"
+                            placeholder="Enter phone number used during purchase"
+                            value={regPhone}
+                            onChange={(e) => setRegPhone(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={registering}
+                        className="w-full bg-[#4d55f5] hover:bg-[#3d45e5] text-white font-bold py-3 px-4 rounded-xl disabled:opacity-50"
+                    >
+                        {registering ? 'Checking...' : 'Continue'}
+                    </button>
+                </form>
+            );
+        }
+
+        if (step === 'setPassword') {
+            return (
+                <form onSubmit={handleSetPassword}>
+                    <div className="mb-4 p-4 bg-gray-100 rounded-xl">
+                        <p className="text-sm text-gray-600">Welcome,</p>
+                        <p className="font-bold text-lg text-gray-900">{customerData.name}</p>
+                        <p className="text-sm text-gray-600">{customerData.phone}</p>
+                    </div>
+                    <div className="mb-4">
+                        <label className="block text-gray-700 text-sm font-medium mb-2">Create Password</label>
+                        <input
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                            type="password"
+                            placeholder="Enter a new password"
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="mb-6">
+                        <label className="block text-gray-700 text-sm font-medium mb-2">Confirm Password</label>
+                        <input
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                            type="password"
+                            placeholder="Confirm your new password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={registering}
+                        className="w-full bg-[#4d55f5] hover:bg-[#3d45e5] text-white font-bold py-3 px-4 rounded-xl disabled:opacity-50"
+                    >
+                        {registering ? 'Saving...' : 'Create Account'}
+                    </button>
+                </form>
+            );
         }
     };
 
@@ -120,7 +192,7 @@ export default function CustomerAuth({ onBack }) {
                     </button>
                     <button
                         className={`px-4 py-2 rounded-xl ${mode === 'register' ? 'bg-[#4d55f5] text-white' : 'bg-gray-100'}`}
-                        onClick={() => setMode('register')}
+                        onClick={() => { setMode('register'); setStep('enterPhone'); }}
                     >
                         Register
                     </button>
@@ -169,83 +241,7 @@ export default function CustomerAuth({ onBack }) {
                     </button>
                 </form>
             ) : (
-                <form 
-                    onSubmit={handleRegister}
-                    className="grid grid-cols-2 gap-1">
-                    <div className="mb-2">
-                        <label className="block text-gray-700 text-sm font-medium mb-2">Full Name</label>
-                        <input
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-                            type="text"
-                            placeholder="John Doe"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-2">
-                        <label className="block text-gray-700 text-sm font-medium mb-2">Phone</label>
-                        <input
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-                            type="text"
-                            placeholder="Phone number"
-                            value={regPhone}
-                            onChange={(e) => setRegPhone(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-2">
-                        <label className="block text-gray-700 text-sm font-medium mb-2">Email</label>
-                        <input
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-                            type="email"
-                            placeholder="you@example.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-2">
-                        <label className="block text-gray-700 text-sm font-medium mb-2">Address</label>
-                        <input
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-                            type="text"
-                            placeholder="Address"
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-2">
-                        <label className="block text-gray-700 text-sm font-medium mb-2">Password</label>
-                        <input
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-                            type="password"
-                            placeholder="Password"
-                            value={regPassword}
-                            onChange={(e) => setRegPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 text-sm font-medium mb-2">Confirm Password</label>
-                        <input
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-                            type="password"
-                            placeholder="Confirm password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={registering}
-                        className="w-full bg-[#4d55f5] hover:bg-[#3d45e5] text-white font-bold py-3 px-4 rounded-xl disabled:opacity-50"
-                    >
-                        {registering ? 'Creating Account...' : 'Create Account'}
-                    </button>
-                </form>
+                renderRegisterForm()
             )}
         </div>
     );

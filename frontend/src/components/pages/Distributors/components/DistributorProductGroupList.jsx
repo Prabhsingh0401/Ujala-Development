@@ -2,17 +2,25 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { groupProductsByConfiguration, getOrderTypeDisplay } from '../utils';
 import { distributorDealerProductService } from '../../../../services/distributorDealerProductService';
+import { distributorSalesService } from '../../../../services/distributorSalesService';
+import SaleModal from '../../Dealers/components/SaleModal'; // Import SaleModal
 import { toast } from 'react-hot-toast';
 import './TableList.css';
 
-export default function DistributorProductGroupList({ products, dealers, distributor, selectedProductGroups = [], setSelectedProductGroups }) {
+export default function DistributorProductGroupList({ products, dealers, distributor, selectedProductGroups = [], setSelectedProductGroups, onSaleSuccess }) {
     const groupedProducts = groupProductsByConfiguration(products);
     const [showAssignModal, setShowAssignModal] = useState(false);
+    const [showSellModal, setShowSellModal] = useState(false);
     const [selectedDealer, setSelectedDealer] = useState('');
+    // customerDetails state is no longer needed here as SaleModal manages its own state
+    // const [customerDetails, setCustomerDetails] = useState({ name: '', phone: '', address: '' });
 
-    const handleAssignClick = (productGroups) => {
-        setSelectedProductGroups(productGroups);
+    const handleAssignClick = () => {
         setShowAssignModal(true);
+    };
+
+    const handleSellClick = () => {
+        setShowSellModal(true);
     };
 
     const handleAssign = async () => {
@@ -35,9 +43,49 @@ export default function DistributorProductGroupList({ products, dealers, distrib
             setShowAssignModal(false);
             if (setSelectedProductGroups) setSelectedProductGroups([]);
             setSelectedDealer('');
+            if (onSaleSuccess) onSaleSuccess(); // Trigger re-fetch in parent
         } catch (error) {
-            toast.error('Error assigning products');
+            toast.error(error.response?.data?.message || 'Error assigning products');
             console.error('Error:', error);
+        }
+    };
+
+    const handleSellToCustomer = async (saleData) => {
+        const { customerName, customerPhone, customerEmail, customerAddress, customerState, customerCity, plumberName, productSelection: groupsToSell } = saleData;
+
+        if (!customerName || !customerPhone) {
+            toast.error('Customer name and phone are required.');
+            return;
+        }
+
+        if (!groupsToSell || (Array.isArray(groupsToSell) && groupsToSell.length === 0)) {
+            toast.error('No products selected for sale.');
+            return;
+        }
+
+        const productIdsToSell = (Array.isArray(groupsToSell) ? groupsToSell : [groupsToSell]).flatMap(group =>
+            group.productsInBox.map(product => product._id)
+        );
+
+        try {
+            await distributorSalesService.sellToCustomer({
+                productIds: productIdsToSell,
+                distributorId: distributor._id,
+                customerName,
+                customerPhone,
+                customerEmail,
+                customerAddress,
+                customerState,
+                customerCity,
+                plumberName
+            });
+            toast.success(`${productIdsToSell.length} products sold successfully!`);
+            setShowSellModal(false);
+            if (setSelectedProductGroups) setSelectedProductGroups([]);
+            if (onSaleSuccess) onSaleSuccess(); // Trigger re-fetch in parent
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Error selling products.');
+            console.error('Error selling products:', error);
         }
     };
 
@@ -70,12 +118,18 @@ export default function DistributorProductGroupList({ products, dealers, distrib
     return (
         <>
             {selectedProductGroups && selectedProductGroups.length > 0 && (
-                <div className="mb-4">
+                <div className="mb-4 flex space-x-2">
                     <button
-                        onClick={() => handleAssignClick(selectedProductGroups)}
+                        onClick={handleAssignClick}
                         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#4d55f5] hover:bg-[#3d45e5] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4d55f5]"
                     >
-                        Assign Selected ({selectedProductGroups.length})
+                        Assign to Dealer ({selectedProductGroups.length})
+                    </button>
+                    <button
+                        onClick={handleSellClick}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    >
+                        Sell to Customer ({selectedProductGroups.length})
                     </button>
                 </div>
             )}
@@ -83,13 +137,12 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                 <table className="min-w-full divide-y divide-gray-200 responsive-table">
                     <thead className="bg-gray-50">
                         <tr>
-                            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 <input type="checkbox" onChange={handleSelectAll} />
-                            </th> */}
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Box Type</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Numbers</th>
-                            {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th> */}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Factory</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -105,9 +158,9 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                                     key={group._id}
                                     className={`hover:bg-gray-50 ${(isAssigned || isSold) ? 'bg-gray-100 text-gray-500' : ''}`}
                                 >
-                                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" data-label="Select">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" data-label="Select">
                                         <input type="checkbox" onChange={(e) => handleSelectRow(e, group)} checked={selectedProductGroups && selectedProductGroups.some(g => g._id === group._id)} disabled={isAssigned} />
-                                    </td> */}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" data-label="Product Name">{group.productName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Box Type">
                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getOrderTypeDisplay(group.orderType).bgColor} ${getOrderTypeDisplay(group.orderType).textColor}`}>
@@ -119,7 +172,6 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                                             <div key={product._id}>{product.serialNumber}</div>
                                         ))}
                                     </td>
-                                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Category">{group.category?.name}</td> */}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Model">{group.model?.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm" data-label="Factory">{group.factory?.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap" data-label="Status">
@@ -196,6 +248,13 @@ export default function DistributorProductGroupList({ products, dealers, distrib
                     </div>
                 </div>
             )}
+
+            <SaleModal
+                isOpen={showSellModal}
+                onClose={() => setShowSellModal(false)}
+                productSelection={selectedProductGroups}
+                onSale={handleSellToCustomer}
+            />
         </>
     );
 }

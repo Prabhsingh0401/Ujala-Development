@@ -146,3 +146,55 @@ export const updateCustomerCredentials = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+export const checkPhone = async (req, res) => {
+    try {
+        const { phone } = req.body;
+        if (!phone) {
+            return res.status(400).json({ message: 'Phone number is required.' });
+        }
+
+        const customer = await Customer.findOne({ phone }).lean();
+
+        if (!customer) {
+            return res.status(404).json({ message: 'No customer found with this phone number. Please register or contact support.' });
+        }
+
+        res.json({
+            ...customer,
+            hasPassword: !!customer.password
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const setCustomerPassword = async (req, res) => {
+    try {
+        const { phone, password } = req.body;
+
+        if (!phone || !password) {
+            return res.status(400).json({ message: 'Phone and password are required.' });
+        }
+
+        const customer = await Customer.findOne({ phone });
+
+        if (!customer) {
+            return res.status(404).json({ message: 'Customer not found.' });
+        }
+
+        if (customer.password) {
+            return res.status(400).json({ message: 'An account with this phone number already has a password.' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        customer.password = await bcrypt.hash(password, salt);
+        await customer.save();
+
+        res.status(200).json({ message: 'Password set successfully. You can now log in.' });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

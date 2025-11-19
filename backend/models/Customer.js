@@ -5,7 +5,9 @@ const customerSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true },
   email: { type: String, required: false, unique: false },
   address: { type: String },
-  password: { type: String, required: true },
+  state: { type: String },
+  city: { type: String },
+  password: { type: String, required: false },
 }, { timestamps: true });
 
 export default mongoose.model('Customer', customerSchema);

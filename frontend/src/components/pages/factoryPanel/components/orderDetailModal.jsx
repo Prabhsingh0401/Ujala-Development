@@ -287,7 +287,7 @@ export default function OrderDetailsModal({ isOpen, onClose, selectedOrder, allO
                                             return (
                                                 <tr key={boxKey} className="hover:bg-gray-50">
                                                     <td className="p-4"><input type="checkbox" checked={boxData.items.every(item => selectedItems.includes(item._id))} onChange={() => { const itemIds = boxData.items.map(item => item._id); const allBoxItemsSelected = boxData.items.every(item => selectedItems.includes(item._id)); setSelectedItems(prev => allBoxItemsSelected ? prev.filter(id => !itemIds.includes(id)) : [...new Set([...prev, ...itemIds])]); }} className="h-4 w-4 text-blue-600 focus:ring-blue-600 border-gray-300 rounded"/></td>
-                                                    <td className="p-4 text-sm text-gray-900">Box {boxData.boxNumber}</td>
+                                                    <td className="p-4 text-sm text-gray-900 whitespace-nowrap">Box {boxData.boxNumber}</td>
                                                     <td className="p-4 text-sm font-medium text-gray-900"><div>{boxData.items.map(it => <div key={it._id}>{it.serialNumber}</div>)}</div></td>
                                                     <td className="p-4 text-sm text-gray-900">{boxData.category?.name}</td>
                                                     <td className="p-4 text-sm text-gray-900">{boxData.model?.name}</td>

@@ -4,7 +4,7 @@ import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 
 export const createTechnician = async (req, res) => {
-    const { name, phone, address, state, city, username, password } = req.body;
+    const { name, phone, address, state, city, username, password, technicianCode } = req.body;
 
     try {
         const existingUser = await User.findOne({ username });
@@ -15,6 +15,11 @@ export const createTechnician = async (req, res) => {
         const existingTechnician = await Technician.findOne({ phone });
         if (existingTechnician) {
             return res.status(400).json({ message: 'Phone number already exists' });
+        }
+
+        const existingCode = await Technician.findOne({ technicianCode });
+        if (existingCode) {
+            return res.status(400).json({ message: 'Technician code already exists' });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -30,6 +35,7 @@ export const createTechnician = async (req, res) => {
 
         const newTechnician = new Technician({
             user: savedUser._id,
+            technicianCode,
             name,
             phone,
             address,
@@ -47,9 +53,29 @@ export const createTechnician = async (req, res) => {
     }
 };
 
+export const checkTechnicianCode = async (req, res) => {
+    try {
+        const { code } = req.params;
+        const existingTechnician = await Technician.findOne({ technicianCode: code });
+        res.json({ isTaken: !!existingTechnician });
+    } catch (error) {
+        res.status(500).json({ message: 'Error checking technician code' });
+    }
+};
+
 export const getTechnicians = async (req, res) => {
     try {
-        const technicians = await Technician.find()
+        const { state, city } = req.query;
+        const filter = {};
+
+        if (state) {
+            filter.state = state;
+        }
+        if (city) {
+            filter.city = city;
+        }
+
+        const technicians = await Technician.find(filter)
             .populate('user', 'username')
             .populate({
                 path: 'assignedRequests',
@@ -129,6 +155,8 @@ export const deleteTechnician = async (req, res) => {
     }
 };
 
+import Sale from '../models/Sale.js';
+
 export const getAssignedRequests = async (req, res) => {
     try {
         const requests = await ReplacementRequest.find({ assignedTechnician: req.user.id })
@@ -139,7 +167,45 @@ export const getAssignedRequests = async (req, res) => {
                     { path: 'category' }
                 ]
             })
-            .populate('customer', 'name phone email address city state');
+            .populate('customer', 'name phone email address city state')
+            .lean();
+
+        for (let i = 0; i < requests.length; i++) {
+            const request = requests[i];
+            
+            // --- Warranty Calculation ---
+            const sale = await Sale.findOne({ product: request.product?._id }).populate('distributor').populate('dealer');
+            if (sale && request.product?.model) {
+                const model = request.product.model;
+                const seller = sale.distributor || sale.dealer;
+                let warrantyInfo = null;
+
+                if (model.warranty && Array.isArray(model.warranty) && model.warranty.length > 0) {
+                    const candidate = (seller && model.warranty.find(w => w.state === seller.state && w.city === seller.city))
+                        || (seller && model.warranty.find(w => w.state === seller.state))
+                        || model.warranty[0];
+
+                    if (candidate) {
+                        const months = candidate.durationType === 'Years' ? candidate.duration * 12 : candidate.duration;
+                        const soldAt = sale.saleDate ? new Date(sale.saleDate) : new Date(sale.createdAt);
+                        const expiry = new Date(soldAt);
+                        expiry.setMonth(expiry.getMonth() + months);
+                        const now = new Date();
+                        const inWarranty = expiry >= now;
+                        const daysLeft = inWarranty ? Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)) : 0;
+
+                        warrantyInfo = {
+                            ...candidate,
+                            expiryDate: expiry,
+                            inWarranty,
+                            daysLeft
+                        };
+                    }
+                }
+                request.warrantyInfo = warrantyInfo;
+            }
+            // --- End Warranty Calculation ---
+        }
 
         res.json(requests);
     } catch (error) {

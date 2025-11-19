@@ -20,10 +20,44 @@ export default function Technicians() {
         city: '',
         username: '',
         password: '',
+        technicianCode: '',
     });
     const [states, setStates] = useState([]);
     const [cities, setCities] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [codeError, setCodeError] = useState('');
+    const [isCheckingCode, setIsCheckingCode] = useState(false);
+
+    useEffect(() => {
+        const checkCode = async () => {
+            if (!formData.technicianCode) {
+                setCodeError('');
+                return;
+            }
+            setIsCheckingCode(true);
+            try {
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/technicians/check-code/${formData.technicianCode}`, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                });
+                if (res.data.isTaken) {
+                    setCodeError('This code is already taken.');
+                } else {
+                    setCodeError('');
+                }
+            } catch (error) {
+                setCodeError('Error checking code.');
+            } finally {
+                setIsCheckingCode(false);
+            }
+        };
+
+        const debounceTimeout = setTimeout(() => {
+            checkCode();
+        }, 300);
+
+        return () => clearTimeout(debounceTimeout);
+    }, [formData.technicianCode]);
+
 
     const fetchStates = async () => {
         try {
@@ -214,8 +248,8 @@ export default function Technicians() {
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technician Code</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
@@ -227,8 +261,8 @@ export default function Technicians() {
                             {paginatedTechnicians.map((technician) => (
                                 <tr key={technician._id}>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{technician.name}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.technicianCode}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.phone}</td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.address}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.state}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.city}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.user.username}</td>
@@ -305,6 +339,11 @@ export default function Technicians() {
                         <form onSubmit={handleAddTechnician}>
                             <div className="space-y-4 grid grid-cols-2 gap-4">
                                 <input type="text" name="name" placeholder="Name" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
+                                <div>
+                                    <input type="text" name="technicianCode" placeholder="Technician Code" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
+                                    {isCheckingCode && <p className="text-xs text-gray-500 mt-1">Checking...</p>}
+                                    {codeError && <p className="text-xs text-red-500 mt-1">{codeError}</p>}
+                                </div>
                                 <input type="text" name="phone" placeholder="Phone" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
                                 <input type="text" name="address" placeholder="Address" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
                                 <select name="state" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
@@ -316,11 +355,13 @@ export default function Technicians() {
                                     {cities.map(city => <option key={city} value={city}>{city}</option>)}
                                 </select>
                                 <input type="text" name="username" placeholder="Username" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
-                                <input type="password" name="password" placeholder="Password" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
+                                <div>
+                                    <input type="password" name="password" placeholder="Password" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
+                                </div>
                             </div>
                             <div className="mt-4 flex justify-end space-x-2">
                                 <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                                <button type="submit" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Add</button>
+                                <button type="submit" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400" disabled={!!codeError || isCheckingCode}>Add</button>
                             </div>
                         </form>
                     </div>
@@ -333,6 +374,10 @@ export default function Technicians() {
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Technician</h3>
                         <form onSubmit={handleUpdateTechnician}>
                             <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Technician Code</label>
+                                    <input type="text" value={selectedTechnician?.technicianCode || ''} className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" disabled />
+                                </div>
                                 <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
                                 <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
                                 <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />

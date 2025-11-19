@@ -22,10 +22,12 @@ export const getFactories = async (req, res) => {
         const factories = await Factory.find(query);
         
         const factoriesWithOrders = await Promise.all(factories.map(async (factory) => {
+            const user = await User.findOne({ factory: factory._id, role: 'factory' });
             const orderCount = await OrderItem.countDocuments({ factory: factory._id });
             const pendingOrderCount = await OrderItem.countDocuments({ factory: factory._id, status: 'Pending' });
             return {
                 ...factory.toObject(),
+                username: user ? user.username : '',
                 orderCount,
                 pendingOrderCount
             };
@@ -87,8 +89,10 @@ export const updateFactory = async (req, res) => {
             return res.status(404).json({ message: 'Factory not found' });
         }
 
-        if (req.body.code && req.body.code !== factory.code) {
-            const existingFactory = await Factory.findOne({ code: req.body.code });
+        const { password, ...factoryData } = req.body;
+
+        if (factoryData.code && factoryData.code !== factory.code) {
+            const existingFactory = await Factory.findOne({ code: factoryData.code });
             if (existingFactory) {
                 return res.status(400).json({ message: 'Code already assigned. Please choose a different code.' });
             }
@@ -96,9 +100,17 @@ export const updateFactory = async (req, res) => {
 
         const updatedFactory = await Factory.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            factoryData,
             { new: true, runValidators: true }
         );
+
+        if (password) {
+            const user = await User.findOne({ factory: req.params.id, role: 'factory' });
+            if (user) {
+                user.password = await bcrypt.hash(password, 10);
+                await user.save();
+            }
+        }
 
         res.json(updatedFactory);
     } catch (error) {

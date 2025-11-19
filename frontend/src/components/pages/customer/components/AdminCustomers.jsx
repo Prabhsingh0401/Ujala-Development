@@ -229,7 +229,7 @@ export default function Customers() {
                       <tr>
                         <th className="px-4 py-2">Product</th>
                         <th className="px-4 py-2">Serial No.</th>
-                        <th className="px-4 py-2">Bought On</th>
+                        <th className="px-4 py-2 whitespace-nowrap">Bought On</th>
                         <th className="px-4 py-2">Seller</th>
                         <th className="px-4 py-2">Plumber</th>
                         <th className="px-4 py-2">Warranty</th>
@@ -248,7 +248,7 @@ export default function Customers() {
                             <td className="px-4 py-2">{productName}</td>
                             <td className="px-4 py-2 text-gray-600">{serial}</td>
                             <td className="px-4 py-2">{soldAt.toLocaleDateString()}</td>
-                            <td className="px-4 py-2">{sellerName}</td>
+                            <td className="px-4 py-2 whitespace-nowrap">{sellerName}</td>
                             <td className="px-4 py-2">{sale.plumberName || "-"}</td>
                             <td className="px-4 py-2">
                               {warranty ? (

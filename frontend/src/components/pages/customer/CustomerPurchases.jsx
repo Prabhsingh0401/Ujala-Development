@@ -1,35 +1,92 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { ShoppingCart, RefreshCw } from 'lucide-react';
 
-const ReasonModal = ({ isOpen, onClose, onSubmit }) => {
-    const [reason, setReason] = useState('');
+const ComplaintModal = ({ isOpen, onClose, onSubmit, sale, product }) => {
+    const [complaintDescription, setComplaintDescription] = useState('');
+    const [mediaFile, setMediaFile] = useState(null);
+    const [preferredVisitDate, setPreferredVisitDate] = useState('');
 
     if (!isOpen) return null;
 
     const handleSubmit = () => {
-        if (!reason.trim()) {
-            toast.error('Please provide a reason for the replacement.');
+        if (!complaintDescription.trim()) {
+            toast.error('Please provide a complaint description.');
             return;
         }
-        onSubmit(reason);
+        const formData = new FormData();
+        formData.append('productId', product._id);
+        formData.append('complaintDescription', complaintDescription);
+        if (mediaFile) {
+            formData.append('media', mediaFile);
+        }
+        if (preferredVisitDate) {
+            formData.append('preferredVisitDate', preferredVisitDate);
+        }
+        
+        onSubmit(formData);
     };
 
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Reason for Replacement</h3>
-                <textarea
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    rows="4"
-                    placeholder="Please describe the issue with the product..."
-                ></textarea>
-                <div className="mt-4 flex justify-end space-x-2">
+            <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">Submit a Complaint</h3>
+                
+                {/* Display Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-sm">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="font-semibold text-gray-600">Product Serial Number</p>
+                        <p className="text-gray-800">{product?.serialNumber || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="font-semibold text-gray-600">Customer Name</p>
+                        <p className="text-gray-800">{sale?.customerName || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="font-semibold text-gray-600">Customer Phone</p>
+                        <p className="text-gray-800">{sale?.customerPhone || 'N/A'}</p>
+                    </div>
+                </div>
+
+                {/* Form Inputs */}
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Complaint Description</label>
+                        <textarea
+                            id="description"
+                            value={complaintDescription}
+                            onChange={(e) => setComplaintDescription(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            rows="4"
+                            placeholder="Please describe the issue..."
+                        ></textarea>
+                    </div>
+                    <div>
+                        <label htmlFor="media" className="block text-sm font-medium text-gray-700 mb-1">Upload Image/Video (Optional)</label>
+                        <input
+                            id="media"
+                            type="file"
+                            onChange={(e) => setMediaFile(e.target.files[0])}
+                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="visitDate" className="block text-sm font-medium text-gray-700 mb-1">Preferred Date of Visit (Optional)</label>
+                        <input
+                            id="visitDate"
+                            type="date"
+                            value={preferredVisitDate}
+                            onChange={(e) => setPreferredVisitDate(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            min={new Date().toISOString().split('T')[0]} // Today as minimum date
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-6 flex justify-end space-x-2">
                     <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button onClick={handleSubmit} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Submit Request</button>
+                    <button onClick={handleSubmit} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Submit</button>
                 </div>
             </div>
         </div>
@@ -40,8 +97,8 @@ export default function CustomerPurchases() {
     const [sales, setSales] = useState([]);
     const [replacementRequests, setReplacementRequests] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showReasonModal, setShowReasonModal] = useState(false);
-    const [selectedProductId, setSelectedProductId] = useState(null);
+    const [showComplaintModal, setShowComplaintModal] = useState(false);
+    const [selectedSale, setSelectedSale] = useState(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -67,26 +124,25 @@ export default function CustomerPurchases() {
 
     useEffect(() => { fetchData(); }, []);
 
-    const handleReplaceClick = (productId) => {
-        setSelectedProductId(productId);
-        setShowReasonModal(true);
+    const handleComplaintClick = (sale) => {
+        setSelectedSale(sale);
+        setShowComplaintModal(true);
     };
 
-    const handleConfirmReplacement = async (reason) => {
-        setShowReasonModal(false);
-        if (!selectedProductId) return;
-
+    const handleConfirmComplaint = async (formData) => {
+        setShowComplaintModal(false);
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`${import.meta.env.VITE_API_URL}/api/replacement-requests`, { productId: selectedProductId, reason }, {
+            await axios.post(`${import.meta.env.VITE_API_URL}/api/replacement-requests`, formData, {
                 headers: {
+                    'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${token}`
                 }
             });
-            toast.success('Replacement request submitted successfully');
+            toast.success('Request submitted successfully');
             fetchData(); // Refresh all data
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to submit replacement request');
+            toast.error(error.response?.data?.message || 'Failed to submit request');
         }
     };
 
@@ -140,13 +196,23 @@ export default function CustomerPurchases() {
                                         <div className="text-sm text-gray-500">No warranty</div>
                                     )}
 
-                                    {warranty?.inWarranty && (!request || request.status === 'Rejected') && (
+                                    {warranty?.inWarranty ? (
                                         <button
-                                            onClick={() => handleReplaceClick(product?._id)}
-                                            className="mt-4 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                                            onClick={() => handleComplaintClick(sale)}
+                                            className="mt-4 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={request && request.status !== 'Rejected'}
                                         >
                                             <RefreshCw className="h-4 w-4 mr-2" />
-                                            Request Replacement
+                                            Claim Warranty
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleComplaintClick(sale)}
+                                            className="mt-4 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={request && request.status !== 'Rejected'}
+                                        >
+                                            <RefreshCw className="h-4 w-4 mr-2" />
+                                            Raise Complaint
                                         </button>
                                     )}
 
@@ -174,11 +240,15 @@ export default function CustomerPurchases() {
                 </div>
             )}
 
-            <ReasonModal
-                isOpen={showReasonModal}
-                onClose={() => setShowReasonModal(false)}
-                onSubmit={handleConfirmReplacement}
-            />
+            {selectedSale && (
+                <ComplaintModal
+                    isOpen={showComplaintModal}
+                    onClose={() => setShowComplaintModal(false)}
+                    onSubmit={handleConfirmComplaint}
+                    sale={selectedSale}
+                    product={selectedSale.product}
+                />
+            )}
         </div>
     );
 }

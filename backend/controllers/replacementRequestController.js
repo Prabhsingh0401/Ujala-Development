@@ -5,43 +5,36 @@ import Technician from '../models/Technician.js';
 
 export const createReplacementRequest = async (req, res) => {
     try {
-        const { productId, reason } = req.body;
-        const customerId = req.user.id;
+        const { productId, complaintDescription, preferredVisitDate } = req.body;
+        const customerId = req.user.id; // This is the Customer ID from the token
+
+        const customer = await Customer.findById(customerId);
+        if (!customer) {
+            return res.status(404).json({ message: 'Customer profile not found.' });
+        }
 
         const product = await Product.findById(productId);
-
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        const sale = await Sale.findOne({ product: productId });
-
-        if (!sale) {
-            return res.status(404).json({ message: 'Sale information not found' });
-        }
-
-        const saleDate = new Date(sale.saleDate);
-        const warrantyEndDate = new Date(new Date(saleDate).setFullYear(saleDate.getFullYear() + 1));
-        const isWarrantyActive = new Date() < warrantyEndDate;
-
-        if (!isWarrantyActive) {
-            return res.status(400).json({ message: 'Product is not under warranty' });
-        }
-
-        const existingRequest = await ReplacementRequest.findOne({ product: productId });
+        const existingRequest = await ReplacementRequest.findOne({ 
+            product: productId,
+            status: { $in: ['Pending', 'Approved', 'Assigned', 'In Progress', 'Replacement Required'] } 
+        });
 
         if (existingRequest) {
-            if (existingRequest.status === 'Rejected') {
-                await ReplacementRequest.findByIdAndDelete(existingRequest._id);
-            } else {
-                return res.status(400).json({ message: 'A replacement request for this product already exists' });
-            }
+            return res.status(400).json({ message: 'An active replacement request for this product already exists.' });
         }
+
+        const mediaUrl = req.file ? req.file.path.replace('public\\', '') : null;
 
         const replacementRequest = new ReplacementRequest({
             product: productId,
-            customer: customerId,
-            reason: reason,
+            customer: customerId, // Store the Customer's ID
+            complaintDescription,
+            preferredVisitDate: preferredVisitDate ? new Date(preferredVisitDate) : null,
+            mediaUrl,
         });
 
         await replacementRequest.save();
@@ -55,25 +48,62 @@ export const createReplacementRequest = async (req, res) => {
     }
 };
 
+import Customer from '../models/Customer.js';
+
 export const getReplacementRequests = async (req, res) => {
     try {
-        const requests = await ReplacementRequest.find()
+        let requests = await ReplacementRequest.find()
             .populate({
                 path: 'product',
                 populate: {
                     path: 'model',
                 },
             })
-            .populate('customer')
-            .lean(); // Use lean to get plain JS objects
+            .populate('customer') // Now correctly populates the Customer model
+            .lean(); 
 
         for (let i = 0; i < requests.length; i++) {
-            if (requests[i].assignedTechnician) {
-                const technician = await Technician.findOne({ user: requests[i].assignedTechnician });
+            const request = requests[i];
+
+            if (request.assignedTechnician) {
+                const technician = await Technician.findOne({ user: request.assignedTechnician });
                 if (technician) {
-                    requests[i].technician = technician;
+                    request.technician = technician;
                 }
             }
+
+            // --- Warranty Calculation ---
+            const sale = await Sale.findOne({ product: request.product?._id }).populate('distributor').populate('dealer');
+            if (sale && request.product?.model) {
+                const model = request.product.model;
+                const seller = sale.distributor || sale.dealer;
+                let warrantyInfo = null;
+
+                if (model.warranty && Array.isArray(model.warranty) && model.warranty.length > 0) {
+                    const candidate = (seller && model.warranty.find(w => w.state === seller.state && w.city === seller.city))
+                        || (seller && model.warranty.find(w => w.state === seller.state))
+                        || model.warranty[0];
+
+                    if (candidate) {
+                        const months = candidate.durationType === 'Years' ? candidate.duration * 12 : candidate.duration;
+                        const soldAt = sale.saleDate ? new Date(sale.saleDate) : new Date(sale.createdAt);
+                        const expiry = new Date(soldAt);
+                        expiry.setMonth(expiry.getMonth() + months);
+                        const now = new Date();
+                        const inWarranty = expiry >= now;
+                        const daysLeft = inWarranty ? Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)) : 0;
+
+                        warrantyInfo = {
+                            ...candidate,
+                            expiryDate: expiry,
+                            inWarranty,
+                            daysLeft
+                        };
+                    }
+                }
+                request.warrantyInfo = warrantyInfo;
+            }
+            // --- End Warranty Calculation ---
         }
 
         res.json(requests);
@@ -84,7 +114,13 @@ export const getReplacementRequests = async (req, res) => {
 
 export const getReplacementRequestsByCustomer = async (req, res) => {
     try {
+        // When a customer is logged in, req.user.id is their Customer ID.
         const customerId = req.user.id;
+
+        if (!customerId) {
+            return res.status(400).json({ message: 'Customer ID not found in token.' });
+        }
+
         const requests = await ReplacementRequest.find({ customer: customerId })
             .populate({
                 path: 'product',
@@ -92,7 +128,7 @@ export const getReplacementRequestsByCustomer = async (req, res) => {
                     path: 'model',
                 },
             })
-            .populate('technician');
+            .populate('technician'); // This might need to be populated with more user details if needed
         res.json(requests);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -116,6 +152,23 @@ export const updateReplacementRequestStatus = async (req, res) => {
 
             const technician = await Technician.findOne({ user: assignedTechnician });
             if (technician) {
+                const now = new Date();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = String(now.getFullYear()).slice(-2);
+                
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+                const monthlyRequestCount = await ReplacementRequest.countDocuments({
+                    assignedTechnician: assignedTechnician,
+                    createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+                });
+
+                const serialNumber = 10001 + monthlyRequestCount;
+                const jcNumber = `JC${month}${year}${technician.technicianCode}${serialNumber}`;
+
+                request.jcNumber = jcNumber;
+
                 technician.assignedRequests.push(request._id);
                 await technician.save();
             }
@@ -128,6 +181,45 @@ export const updateReplacementRequestStatus = async (req, res) => {
 
         res.json(request);
     } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const addDiagnosis = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { diagnosisNotes, serviceOutcome, repairedParts } = req.body;
+
+        const request = await ReplacementRequest.findById(id);
+        if (!request) {
+            return res.status(404).json({ message: 'Replacement request not found' });
+        }
+
+        // Update common fields
+        request.diagnosisNotes = diagnosisNotes;
+        request.serviceOutcome = serviceOutcome;
+
+        if (serviceOutcome === 'Repaired') {
+            request.status = 'Completed';
+            if (repairedParts) {
+                request.repairedParts = JSON.parse(repairedParts);
+            }
+            if (req.files?.beforeImage) {
+                request.beforeImagePath = req.files.beforeImage[0].path.replace('public\\', '');
+            }
+            if (req.files?.afterImage) {
+                request.afterImagePath = req.files.afterImage[0].path.replace('public\\', '');
+            }
+        } else if (serviceOutcome === 'Replacement Required') {
+            request.status = 'Replacement Required';
+            request.repairedParts = []; // Clear any parts if this outcome is chosen
+        }
+
+        const updatedRequest = await request.save();
+        res.json(updatedRequest);
+
+    } catch (error) {
+        console.error('Error adding diagnosis:', error);
         res.status(500).json({ message: error.message });
     }
 };

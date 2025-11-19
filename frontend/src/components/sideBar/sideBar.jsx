@@ -206,7 +206,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                         <button
                           onClick={() => setFactoryDropdownOpen(!factoryDropdownOpen)}
                           type="button"
-                          className={`flex items-center w-full py-1 px-3 rounded-xl group transition-all duration-200 font-bold ${
+                          className={`flex items-center w-full py-0.5 px-2 rounded-xl group transition-all duration-200 font-bold ${
                             active ? 'bg-white sidebar-pill' : ''
                           }`}
                         >
@@ -220,7 +220,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                             />
                           </div>
                           <span
-                            className={`flex-1 ml-4 text-left font-bold ${
+                            className={`flex-1 ml-4 text-left font-bold text-sm ${
                               active ? 'text-[var(--sidebar-bg)]' : 'text-white/90'
                             }`}
                           >
@@ -234,12 +234,12 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                         </button>
 
                         {factoryDropdownOpen && (
-                          <ul className="pl-11 mt-2 space-y-1">
+                          <ul className="pl-11 mt-1 space-y-0.5">
                             {item.children.map((child, childIndex) => (
                               <li key={childIndex}>
                                 <Link
                                   to={child.path}
-                                  className={`block py-1 px-3 rounded-md text-sm ${
+                                  className={`block py-0.5 px-3 rounded-md text-sm whitespace-nowrap ${
                                     isActive(child.path)
                                       ? 'bg-white/20 text-white'
                                       : 'text-white/80 hover:bg-white/10'
@@ -259,7 +259,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                     <li key={index}>
                       <Link
                         to={item.path}
-                        className={`flex items-center py-1 px-3 rounded-xl group transition-all duration-200 ${
+                        className={`flex items-center py-0.5 px-2 rounded-xl group transition-all duration-200 ${
                           isActive(item.path) ? 'bg-white' : ''
                         }`}
                       >
@@ -281,7 +281,7 @@ export function SideBar({ sidebarOpen, toggleSidebar, totalNotifications }) {
                           )}
                         </div>
                         <span
-                          className={`ml-4 font-bold ${
+                          className={`ml-4 font-bold text-sm ${
                             isActive(item.path)
                               ? 'text-[var(--sidebar-bg)]'
                               : 'text-white/90'

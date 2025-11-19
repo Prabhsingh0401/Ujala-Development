@@ -1,5 +1,5 @@
 import express from 'express';
-import { createTechnician, getTechnicians, updateTechnician, deleteTechnician, getAssignedRequests } from '../controllers/technicianController.js';
+import { createTechnician, getTechnicians, updateTechnician, deleteTechnician, getAssignedRequests, checkTechnicianCode } from '../controllers/technicianController.js';
 import { verifyToken } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
@@ -21,6 +21,7 @@ const isTechnician = (req, res, next) => {
 };
 
 router.get('/', verifyToken, isAdmin, getTechnicians);
+router.get('/check-code/:code', verifyToken, isAdmin, checkTechnicianCode);
 router.post('/', verifyToken, isAdmin, createTechnician);
 router.put('/:id', verifyToken, isAdmin, updateTechnician);
 router.delete('/:id', verifyToken, isAdmin, deleteTechnician);

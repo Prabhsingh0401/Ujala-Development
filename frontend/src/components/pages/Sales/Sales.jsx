@@ -206,7 +206,6 @@ export default function Sales() {
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Date</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dealer</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub Dealer</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Factory</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Warranty Status</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Warranty Balance</th>
@@ -270,14 +269,6 @@ export default function Sales() {
                                                             {product.dealer?.name || 'NA'}
                                                         </span>
                                                     </div>
-                                                </td>
-                                                <td className="px-4 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center">
-                                                        <User className="h-4 w-4 text-gray-400 mr-2" />
-                                                        <span className="text-sm text-gray-900">
-                                                            {product.subDealer?.name || 'NA'}
-                                                        </span>
-                                                </div>
                                                 </td>
                                                 <td className="px-4 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">

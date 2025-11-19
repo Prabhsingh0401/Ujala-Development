@@ -1,7 +1,7 @@
 import React from 'react';
 import { groupProductsByConfiguration, getOrderTypeDisplay } from '../../Distributors/utils';
 
-export default function DealerProductGroupList({ products, onProductSelect, selectedGroup, hideCheckbox = false }) {
+export default function DealerProductGroupList({ products, selectedProductGroups = [], setSelectedProductGroups, hideCheckbox = false }) {
     // Map products with distributor name for easier access
     const productsWithDistributor = products.map(item => ({
         ...item.product,
@@ -10,6 +10,22 @@ export default function DealerProductGroupList({ products, onProductSelect, sele
 
     // Group products based on configuration
     const groupedProducts = groupProductsByConfiguration(productsWithDistributor);
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedProductGroups(groupedProducts.filter(g => !g.productsInBox.every(p => p.sold)));
+        } else {
+            setSelectedProductGroups([]);
+        }
+    };
+
+    const handleSelectRow = (e, productGroup) => {
+        if (e.target.checked) {
+            setSelectedProductGroups([...selectedProductGroups, productGroup]);
+        } else {
+            setSelectedProductGroups(selectedProductGroups.filter(group => group._id !== productGroup._id));
+        }
+    };
 
     // If no products found, show empty message
     if (!groupedProducts || groupedProducts.length === 0) {
@@ -25,7 +41,11 @@ export default function DealerProductGroupList({ products, onProductSelect, sele
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
-                        {!hideCheckbox && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>}
+                        {!hideCheckbox && (
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <input type="checkbox" onChange={handleSelectAll} />
+                            </th>
+                        )}
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Box Type</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Numbers</th>
@@ -38,7 +58,7 @@ export default function DealerProductGroupList({ products, onProductSelect, sele
                     {groupedProducts.map((group) => {
                         const orderTypeInfo = getOrderTypeDisplay(group.orderType);
                         const firstProduct = group.productsInBox?.[0];
-                        const isSelected = selectedGroup && selectedGroup._id === group._id;
+                        const isSelected = selectedProductGroups.some(g => g._id === group._id);
                         const allSold = group.productsInBox.every(p => p.sold);
                         const partiallySold = group.productsInBox.some(p => p.sold) && !allSold;
 
@@ -52,7 +72,7 @@ export default function DealerProductGroupList({ products, onProductSelect, sele
                                         <input
                                             type="checkbox"
                                             checked={isSelected}
-                                            onChange={() => onProductSelect(group)}
+                                            onChange={(e) => handleSelectRow(e, group)}
                                             disabled={allSold}
                                         />
                                     </td>

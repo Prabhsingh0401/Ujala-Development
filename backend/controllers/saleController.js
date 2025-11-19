@@ -128,7 +128,7 @@ export const getDealerSales = async (req, res) => {
 };
 
 export const createSale = async (req, res) => {
-  const { productId, dealerId, distributorId, customerName, customerPhone, customerEmail, customerAddress, plumberName } = req.body;
+  const { productId, dealerId, distributorId, customerName, customerPhone, customerEmail, customerAddress, customerState, customerCity, plumberName, plumberPhone } = req.body;
 
   try {
     const product = await Product.findById(productId);
@@ -141,6 +141,22 @@ export const createSale = async (req, res) => {
       return res.status(400).json({ message: 'Product already sold' });
     }
 
+    // Find or create customer
+    let customer;
+    if (customerPhone) {
+        customer = await Customer.findOne({ phone: customerPhone });
+        if (!customer) {
+            customer = await Customer.create({
+                name: customerName,
+                phone: customerPhone,
+                email: customerEmail,
+                address: customerAddress,
+                state: customerState,
+                city: customerCity,
+            });
+        }
+    }
+
     const sale = new Sale({
       product: productId,
       dealer: dealerId,
@@ -149,16 +165,12 @@ export const createSale = async (req, res) => {
       customerPhone,
       customerEmail,
       customerAddress,
+      customerState,
+      customerCity,
       plumberName,
+      plumberPhone,
+      customer: customer ? customer._id : null
     });
-
-    // If a Customer account exists with this phone, link the sale to that customer
-    if (customerPhone) {
-      const existingCustomer = await Customer.findOne({ phone: customerPhone });
-      if (existingCustomer) {
-        sale.customer = existingCustomer._id;
-      }
-    }
 
     product.sold = true;
     product.status = 'Inactive';

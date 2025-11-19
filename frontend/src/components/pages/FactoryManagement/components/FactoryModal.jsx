@@ -55,7 +55,11 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
 
     useEffect(() => {
         if (isEditing && factory) {
-            setNewFactory(factory);
+            setNewFactory({
+                ...factory,
+                username: factory.username || '', // Ensure username is set
+                password: '' // Always clear password field for security
+            });
             setCodeError(''); // Clear error when editing
         } else {
             setNewFactory({
@@ -128,8 +132,7 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
                         ))}
                     </div>
 
-                    {!isEditing && (
-                        <div className="mt-6">
+                    <div className="mt-6">
                             <h4 className="text-lg font-medium text-gray-900 mb-4">Login Credentials</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
@@ -139,23 +142,24 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
                                     <input
                                         type="text"
                                         required
-                                        value={newFactory.username}
+                                        value={newFactory.username || ''}
                                         onChange={(e) => setNewFactory({ ...newFactory, username: e.target.value })}
                                         placeholder="Enter username for factory login"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent bg-gray-100"
+                                        readOnly={isEditing}
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Password *
+                                        Password {isEditing ? '' : '*'}
                                     </label>
                                     <div className="relative">
                                         <input
                                             type={showPassword ? 'text' : 'password'}
-                                            required
+                                            required={!isEditing}
                                             value={newFactory.password}
                                             onChange={(e) => setNewFactory({ ...newFactory, password: e.target.value })}
-                                            placeholder="Enter password for factory login"
+                                            placeholder={isEditing ? "Leave blank to keep current password" : "Enter password for factory login"}
                                             className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
                                         />
                                         <button
@@ -169,7 +173,6 @@ export default function FactoryModal({ isOpen, onClose, onSave, factory, isEditi
                                 </div>
                             </div>
                         </div>
-                    )}
 
                     <div className="mt-8">
                         <button

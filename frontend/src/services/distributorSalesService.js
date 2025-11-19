@@ -8,5 +8,8 @@ export const distributorSalesService = {
     },
     getCustomerSales: (distributorId) => {
         return axios.get(`${API_URL}/customer-sales/${distributorId}`);
+    },
+    sellToCustomer: (saleData) => {
+        return axios.post(`${API_URL}/sell-to-customer`, saleData);
     }
 };

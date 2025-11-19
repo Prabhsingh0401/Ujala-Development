@@ -2,12 +2,18 @@ import { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { AuthContext } from '../../../context/AuthContext';
-import { Package, User, Phone, Mail, MapPin } from 'lucide-react';
+import { Eye, Wrench } from 'lucide-react';
+import TechnicianRequestDetailsModal from './TechnicianRequestDetailsModal';
+import DiagnoseModal from './DiagnoseModal';
 
 export default function TechnicianRequests() {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const { user } = useContext(AuthContext);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [selectedRequestForDetail, setSelectedRequestForDetail] = useState(null);
+    const [isDiagnoseModalOpen, setIsDiagnoseModalOpen] = useState(false);
+    const [selectedRequestForDiagnosis, setSelectedRequestForDiagnosis] = useState(null);
 
     const fetchRequests = async () => {
         setLoading(true);
@@ -31,9 +37,75 @@ export default function TechnicianRequests() {
         }
     }, [user]);
 
+    const handleStatusChange = async (requestId, newStatus) => {
+        const originalRequests = [...requests];
+        
+        setRequests(prevRequests =>
+            prevRequests.map(req =>
+                req._id === requestId ? { ...req, status: newStatus } : req
+            )
+        );
+
+        try {
+            const token = localStorage.getItem('token');
+            await axios.put(
+                `${import.meta.env.VITE_API_URL}/api/replacement-requests/${requestId}`,
+                { status: newStatus },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Status updated successfully');
+        } catch (err) {
+            setRequests(originalRequests);
+            toast.error(err.response?.data?.message || 'Failed to update status');
+            console.error('Error updating status:', err);
+        }
+    };
+
+    const handleViewDetails = (request) => {
+        setSelectedRequestForDetail(request);
+        setIsDetailModalOpen(true);
+    };
+
+    const handleDiagnoseClick = (request) => {
+        setSelectedRequestForDiagnosis(request);
+        setIsDiagnoseModalOpen(true);
+    };
+
+    const handleDiagnoseSubmit = async (requestId, formData) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(
+                `${import.meta.env.VITE_API_URL}/api/replacement-requests/${requestId}/diagnose`,
+                formData,
+                { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` } }
+            );
+            toast.success('Diagnosis submitted successfully');
+            setIsDiagnoseModalOpen(false);
+            fetchRequests(); // Refresh data to show status changes
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to submit diagnosis');
+            console.error('Error submitting diagnosis:', err);
+        }
+    };
+
+    const getStatusDotClass = (status) => {
+        switch (status) {
+            case 'Assigned':
+                return 'bg-blue-500';
+            case 'In Progress':
+                return 'bg-yellow-500';
+            case 'Completed':
+                return 'bg-green-500';
+            case 'Rejected':
+                return 'bg-red-500';
+            default:
+                return 'bg-gray-500';
+        }
+    };
+
     return (
         <div className="p-4">
-            <h1 className="text-2xl font-semibold text-gray-800 mb-4">Assigned Requests</h1>
+            <h1 className="text-2xl font-semibold text-gray-800 mb-4">Assigned Service Requests</h1>
             {loading ? (
                 <div className="text-center py-20">
                     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
@@ -42,41 +114,99 @@ export default function TechnicianRequests() {
             ) : requests.length === 0 ? (
                 <div className="text-center py-20">
                     <h3 className="mt-4 text-lg font-medium text-gray-900">No requests found</h3>
-                    <p className="mt-1 text-sm text-gray-500">You have no assigned requests.</p>
+                    <p className="mt-1 text-sm text-gray-500">You have no assigned requests at the moment.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {requests.map((request) => (
-                        <div key={request._id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                            <div className="p-6">
-                                <div className="flex items-center mb-4">
-                                    <Package className="h-6 w-6 text-indigo-600 mr-3" />
-                                    <h3 className="text-xl font-semibold text-gray-800">Product Details</h3>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div><span className="font-semibold">Name:</span> {request.product?.model?.name || 'N/A'}</div>
-                                    <div><span className="font-semibold">Serial No:</span> {request.product?.serialNumber || 'N/A'}</div>
-                                    <div><span className="font-semibold">MRP:</span> ₹{request.product?.model?.specifications?.mrpPrice || 'N/A'}</div>
-                                    <div><span className="font-semibold">Weight:</span> {request.product?.model?.specifications?.grossWeight || 'N/A'}</div>
-                                    <div><span className="font-semibold">KW/HP:</span> {request.product?.model?.specifications?.kwHp || 'N/A'}</div>
-                                    <div><span className="font-semibold">Voltage:</span> {request.product?.model?.specifications?.voltage || 'N/A'}</div>
-                                    <div className="col-span-2"><span className="font-semibold">Reason for Replacement:</span> {request.reason}</div>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 p-6 border-t border-gray-200">
-                                <div className="flex items-center mb-4">
-                                    <User className="h-6 w-6 text-indigo-600 mr-3" />
-                                    <h3 className="text-xl font-semibold text-gray-800">Customer Details</h3>
-                                </div>
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex items-center"><User className="h-4 w-4 text-gray-500 mr-2" /> {request.customer?.name || 'N/A'}</div>
-                                    <div className="flex items-center"><Phone className="h-4 w-4 text-gray-500 mr-2" /> {request.customer?.phone || 'N/A'}</div>
-                                    <div className="flex items-center"><MapPin className="h-4 w-4 text-gray-500 mr-2" /> {`${request.customer?.address || ''}`}</div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                <div className="overflow-x-auto bg-white rounded-lg shadow">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Number</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Details</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product & Issue</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Address</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Type</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Date</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {requests.map((request) => (
+                                <tr key={request._id}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.jcNumber || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <div className="font-medium text-gray-900">{request.customer?.name || 'N/A'}</div>
+                                        <div>{request.customer?.phone || 'N/A'}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-normal text-sm text-gray-500 max-w-xs">
+                                        <div className="font-medium text-gray-900">{request.product?.model?.name || 'N/A'}</div>
+                                        <div className="text-xs text-gray-600 mt-1 truncate" title={request.complaintDescription || request.reason}>
+                                            {request.complaintDescription || request.reason || 'No issue description.'}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-normal text-sm text-gray-500 max-w-xs">{request.customer?.address || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {request.warrantyInfo ? (
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${request.warrantyInfo.inWarranty ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                {request.warrantyInfo.inWarranty ? 'In Warranty' : 'Out of Warranty'}
+                                            </span>
+                                        ) : (
+                                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                Unknown
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {request.preferredVisitDate ? new Date(request.preferredVisitDate).toLocaleDateString() : 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <div className="flex items-center">
+                                            <span className={`h-2.5 w-2.5 rounded-full mr-2 ${getStatusDotClass(request.status)}`}></span>
+                                            <select
+                                                value={request.status}
+                                                onChange={(e) => handleStatusChange(request._id, e.target.value)}
+                                                className="w-full p-1.5 border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-transparent"
+                                                disabled={request.status === 'Completed' || request.status === 'Replacement Required'}
+                                            >
+                                                <option value="Assigned">Assigned</option>
+                                                <option value="In Progress">In Progress</option>
+                                                <option value="Completed">Completed</option>
+                                            </select>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex items-center space-x-2">
+                                            <button onClick={() => handleViewDetails(request)} className="text-gray-500 hover:text-indigo-600 p-1">
+                                                <Eye className="h-5 w-5" />
+                                            </button>
+                                            {request.status === 'In Progress' && (
+                                                <button onClick={() => handleDiagnoseClick(request)} className="text-gray-500 hover:text-blue-600 p-1">
+                                                    <Wrench className="h-5 w-5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
+            )}
+            {isDetailModalOpen && selectedRequestForDetail && (
+                <TechnicianRequestDetailsModal
+                    isOpen={isDetailModalOpen}
+                    request={selectedRequestForDetail}
+                    onClose={() => setIsDetailModalOpen(false)}
+                />
+            )}
+            {isDiagnoseModalOpen && selectedRequestForDiagnosis && (
+                <DiagnoseModal
+                    isOpen={isDiagnoseModalOpen}
+                    request={selectedRequestForDiagnosis}
+                    onClose={() => setIsDiagnoseModalOpen(false)}
+                    onSubmit={handleDiagnoseSubmit}
+                />
             )}
         </div>
     );

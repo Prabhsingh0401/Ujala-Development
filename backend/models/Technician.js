@@ -6,6 +6,11 @@ const technicianSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
     },
+    technicianCode: {
+        type: String,
+        required: true,
+        unique: true,
+    },
     name: {
         type: String,
         required: true,

@@ -11,25 +11,52 @@ const replacementRequestSchema = new mongoose.Schema({
         ref: 'Customer',
         required: true,
     },
-    reason: {
+    complaintDescription: {
         type: String,
         required: true,
     },
+    mediaUrl: {
+        type: String,
+    },
+    preferredVisitDate: {
+        type: Date,
+    },
     status: {
         type: String,
-        enum: ['Pending', 'Approved', 'Rejected', 'Assigned'],
+        enum: ['Pending', 'Approved', 'Rejected', 'Assigned', 'In Progress', 'Replacement Required', 'Completed'],
         default: 'Pending',
     },
     assignedTechnician: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
+        default: null,
     },
-}, { 
+    jcNumber: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    // Fields for diagnosis and resolution
+    diagnosisNotes: {
+        type: String,
+    },
+    serviceOutcome: {
+        type: String,
+        enum: ['Repaired', 'Replacement Required'],
+    },
+    repairedParts: [{
+        name: { type: String, required: true },
+        cost: { type: Number, required: true },
+    }],
+    beforeImagePath: {
+        type: String,
+    },
+    afterImagePath: {
+        type: String,
+    }
+}, {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
 });
-
 replacementRequestSchema.virtual('technician', {
     ref: 'Technician',
     localField: 'assignedTechnician',

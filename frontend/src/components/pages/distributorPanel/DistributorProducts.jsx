@@ -87,8 +87,10 @@ export default function DistributorProducts() {
         
         const matchesFactory = factoryFilter === 'all' || product.factory?._id === factoryFilter;
         const matchesModel = modelFilter === 'all' || product.model?._id === modelFilter;
+
+        const isAvailable = !product.sold && !product.assignedTo;
         
-        return matchesSearch && matchesFactory && matchesModel;
+        return matchesSearch && matchesFactory && matchesModel && isAvailable;
     });
 
     // Apply pagination
@@ -205,6 +207,7 @@ export default function DistributorProducts() {
                                 distributor={user.distributor}
                                 selectedProductGroups={selectedProductGroups}
                                 setSelectedProductGroups={setSelectedProductGroups}
+                                onSaleSuccess={fetchProducts}
                             />
                         </div>
                     )}
