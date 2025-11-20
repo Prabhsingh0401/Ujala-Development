@@ -39,6 +39,8 @@ export const getCustomers = async (req, res) => {
           phone: 1,
           email: 1,
           address: 1,
+          state: 1,
+          city: 1,
           purchaseCount: 1
         }
       }
@@ -194,6 +196,17 @@ export const setCustomerPassword = async (req, res) => {
 
         res.status(200).json({ message: 'Password set successfully. You can now log in.' });
 
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const deleteCustomers = async (req, res) => {
+    const { ids } = req.body;
+
+    try {
+        await Customer.deleteMany({ _id: { $in: ids } });
+        res.json({ message: 'Selected customers deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Search, Plus, X, FilePenLine, Trash2, Box } from 'lucide-react';
+import { Plus, X, FilePenLine, Trash2, Box } from 'lucide-react';
 import ListComponent from '../../global/ListComponent';
 import ErrorBoundary from '../../global/ErrorBoundary';
 import { useDealers } from './hooks/useDealers';
@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import axios from 'axios';
 
 import DealerProductGroupList from './components/DealerProductGroupList';
+import { DealerFilters } from './components/DealerFilters';
 
 function Dealers() {
     const {
@@ -31,13 +32,32 @@ function Dealers() {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [selectedDealers, setSelectedDealers] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [stateFilter, setStateFilter] = useState('all');
+    const [distributorFilter, setDistributorFilter] = useState('all');
 
-    const totalPages = useMemo(() => Math.ceil(dealers.length / itemsPerPage), [dealers, itemsPerPage]);
+    const filteredDealers = useMemo(() => {
+        return dealers.filter(dealer => {
+            const searchLower = searchTerm.toLowerCase();
+            const matchSearch = (
+                dealer.name?.toLowerCase().includes(searchLower) ||
+                dealer.dealerId?.toLowerCase().includes(searchLower) ||
+                dealer.city?.toLowerCase().includes(searchLower) ||
+                dealer.distributor?.name?.toLowerCase().includes(searchLower)
+            );
+
+            const matchState = stateFilter === 'all' || dealer.state === stateFilter;
+            const matchDistributor = distributorFilter === 'all' || dealer.distributor?._id === distributorFilter;
+
+            return matchSearch && matchState && matchDistributor;
+        });
+    }, [dealers, searchTerm, stateFilter, distributorFilter]);
+
+    const totalPages = useMemo(() => Math.ceil(filteredDealers.length / itemsPerPage), [filteredDealers, itemsPerPage]);
     const currentItems = useMemo(() => {
         const indexOfLastItem = currentPage * itemsPerPage;
         const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-        return dealers.slice(indexOfFirstItem, indexOfLastItem);
-    }, [dealers, currentPage, itemsPerPage]);
+        return filteredDealers.slice(indexOfFirstItem, indexOfLastItem);
+    }, [filteredDealers, currentPage, itemsPerPage]);
     
     const [newDealer, setNewDealer] = useState({
         name: '',
@@ -181,20 +201,10 @@ function Dealers() {
                             <div>
                                 <h2 className="text-lg font-semibold text-gray-900">Dealer List</h2>
                                 <p className="text-sm text-gray-600">
-                                    Total {dealers.length}
+                                    Total {filteredDealers.length}
                                 </p>
                             </div>
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full sm:w-auto pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
-                                    />
-                                </div>
                                 {selectedDealers.length > 0 ? (
                                     <button
                                         onClick={handleDeleteSelected}
@@ -214,6 +224,24 @@ function Dealers() {
                                 )}
                             </div>
                         </div>
+                    </div>
+
+                    <div className="p-4 sm:p-6 border-b border-gray-200">
+                        <DealerFilters
+                            searchTerm={searchTerm}
+                            onSearchChange={setSearchTerm}
+                            stateFilter={stateFilter}
+                            onStateFilterChange={setStateFilter}
+                            distributorFilter={distributorFilter}
+                            onDistributorFilterChange={setDistributorFilter}
+                            states={states}
+                            distributors={distributors}
+                            onClearFilters={() => {
+                                setSearchTerm('');
+                                setStateFilter('all');
+                                setDistributorFilter('all');
+                            }}
+                        />
                     </div>
 
                     <div className="p-4">

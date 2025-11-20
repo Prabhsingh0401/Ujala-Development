@@ -155,6 +155,26 @@ export const deleteTechnician = async (req, res) => {
     }
 };
 
+export const deleteTechnicians = async (req, res) => {
+    const { ids } = req.body;
+
+    try {
+        const technicians = await Technician.find({ _id: { $in: ids } });
+
+        if (!technicians || technicians.length === 0) {
+            return res.status(404).json({ message: 'No technicians found for the given IDs' });
+        }
+
+        const userIds = technicians.map(technician => technician.user);
+        await User.deleteMany({ _id: { $in: userIds } });
+        await Technician.deleteMany({ _id: { $in: ids } });
+
+        res.json({ message: 'Selected technicians deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 import Sale from '../models/Sale.js';
 
 export const getAssignedRequests = async (req, res) => {

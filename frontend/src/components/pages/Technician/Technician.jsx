@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { Users, Plus, Edit, Trash2, Box, Search } from 'lucide-react';
 import AssignedRequestsModal from './AssignedRequestsModal';
+import { TechnicianFilters } from './components/TechnicianFilters';
 
 export default function Technicians() {
     const [technicians, setTechnicians] = useState([]);
@@ -27,69 +28,55 @@ export default function Technicians() {
     const [searchQuery, setSearchQuery] = useState('');
     const [codeError, setCodeError] = useState('');
     const [isCheckingCode, setIsCheckingCode] = useState(false);
+    const [selectedTechnicians, setSelectedTechnicians] = useState([]);
+    const [stateFilter, setStateFilter] = useState('all');
+    const [cityFilter, setCityFilter] = useState('all');
+    const [distributorFilter, setDistributorFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('all');
 
-    useEffect(() => {
-        const checkCode = async () => {
-            if (!formData.technicianCode) {
-                setCodeError('');
-                return;
-            }
-            setIsCheckingCode(true);
-            try {
-                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/technicians/check-code/${formData.technicianCode}`, {
-                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-                });
-                if (res.data.isTaken) {
-                    setCodeError('This code is already taken.');
-                } else {
+        useEffect(() => {
+            const checkCode = async () => {
+                if (!formData.technicianCode) {
                     setCodeError('');
+                    return;
                 }
-            } catch (error) {
-                setCodeError('Error checking code.');
-            } finally {
-                setIsCheckingCode(false);
-            }
-        };
+                setIsCheckingCode(true);
+                try {
+                    const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/technicians/check-code/${formData.technicianCode}`, {
+                        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+                    });
+                    if (res.data.isTaken) {
+                        setCodeError('This code is already taken.');
+                    } else {
+                        setCodeError('');
+                    }
 
-        const debounceTimeout = setTimeout(() => {
-            checkCode();
-        }, 300);
+                } catch (error) {
+                    setCodeError('Error checking code.');
+                } finally {
+                    setIsCheckingCode(false);
+                }
+            };
 
-        return () => clearTimeout(debounceTimeout);
-    }, [formData.technicianCode]);
+            const debounceTimeout = setTimeout(() => {
+                checkCode();
+            }, 300);
+            return () => clearTimeout(debounceTimeout);
+        }, [formData.technicianCode]);
 
+        const uniqueStates = useMemo(() => [...new Set(technicians.map(t => t.state).filter(Boolean))], [technicians]);
+        const uniqueCities = useMemo(() => [...new Set(technicians.filter(t => t.state === stateFilter).map(t => t.city).filter(Boolean))], [stateFilter, technicians]);
 
-    const fetchStates = async () => {
-        try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/states`);
-            setStates(response.data);
-        } catch (error) {
-            console.error('Error fetching states:', error);
-        }
-    };
-
-    const fetchCities = async (state) => {
-        if (!state) return;
-        try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/cities/${state}`);
-            setCities(response.data);
-        } catch (error) {
-            console.error(`Error fetching cities for ${state}:`, error);
-        }
-    };
-
-    useEffect(() => {
-        fetchStates();
-    }, []);
-
-    useEffect(() => {
-        if (formData.state) {
-            fetchCities(formData.state);
-        }
-    }, [formData.state]);
-
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [currentPage, setCurrentPage] = useState(1);
+        useEffect(() => {
+            setStates(uniqueStates);
+        }, [uniqueStates]);
+    
+        useEffect(() => {
+            setCities(uniqueCities);
+        }, [uniqueCities]);
+    
+        const [itemsPerPage, setItemsPerPage] = useState(10);
+        const [currentPage, setCurrentPage] = useState(1);
 
     const fetchTechnicians = async () => {
         setLoading(true);
@@ -184,15 +171,56 @@ export default function Technicians() {
         setShowRequestsModal(true);
     };
 
-    // Filter technicians based on search query
-    const filteredTechnicians = technicians.filter(technician =>
-        Object.values(technician).some(value =>
-            String(value).toLowerCase().includes(searchQuery.toLowerCase())
-        ) ||
-        Object.values(technician.user).some(value =>
-            String(value).toLowerCase().includes(searchQuery.toLowerCase())
-        )
-    );
+    const handleSelectTechnician = (id) => {
+        setSelectedTechnicians(prev =>
+            prev.includes(id) ? prev.filter(techId => techId !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectedTechnicians.length === paginatedTechnicians.length) {
+            setSelectedTechnicians([]);
+        } else {
+            setSelectedTechnicians(paginatedTechnicians.map(tech => tech._id));
+        }
+    };
+
+    const handleDeleteSelected = async () => {
+        if (window.confirm(`Are you sure you want to delete ${selectedTechnicians.length} selected technicians?`)) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.delete(`${import.meta.env.VITE_API_URL}/api/technicians`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    data: { ids: selectedTechnicians },
+                });
+                toast.success('Selected technicians deleted successfully');
+                fetchTechnicians();
+                setSelectedTechnicians([]);
+            } catch (error) {
+                toast.error('Failed to delete selected technicians');
+            }
+        }
+    };
+
+    const filteredTechnicians = useMemo(() => {
+        return technicians.filter(technician => {
+            const { name, technicianCode, phone, state, city, user } = technician;
+            const { username } = user;
+            const query = searchQuery.toLowerCase();
+
+            const matchSearch = (
+                name.toLowerCase().includes(query) ||
+                technicianCode.toLowerCase().includes(query) ||
+                phone.toLowerCase().includes(query) ||
+                username.toLowerCase().includes(query)
+            );
+
+            const matchState = stateFilter === 'all' || state === stateFilter;
+            const matchCity = cityFilter === 'all' || city === cityFilter;
+
+            return matchSearch && matchState && matchCity;
+        });
+    }, [technicians, searchQuery, stateFilter, cityFilter]);
 
     // Derived pagination values
     const totalPages = Math.ceil(filteredTechnicians.length / itemsPerPage);
@@ -218,17 +246,31 @@ export default function Technicians() {
                 </button>
             </div>
 
-            <div className="mb-4">
-                <div className="relative">
-                    <input
-                        type="text"
-                        placeholder="Search technicians..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-1/3 p-2 pl-10 border border-gray-300 rounded-md"
-                    />
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                </div>
+            <TechnicianFilters
+                searchTerm={searchQuery}
+                onSearchChange={setSearchQuery}
+                stateFilter={stateFilter}
+                onStateFilterChange={setStateFilter}
+                cityFilter={cityFilter}
+                onCityFilterChange={setCityFilter}
+                states={states}
+                cities={cities}
+                onClearFilters={() => {
+                    setSearchQuery('');
+                    setStateFilter('all');
+                    setCityFilter('all');
+                }}
+            />
+            <div className="flex justify-end items-center mb-4">
+                {selectedTechnicians.length > 0 && (
+                    <button
+                        onClick={handleDeleteSelected}
+                        className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                    >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete ({selectedTechnicians.length})
+                    </button>
+                )}
             </div>
 
             {loading ? (
@@ -247,6 +289,13 @@ export default function Technicians() {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
+                                <th className="px-4 py-3 text-left">
+                                    <input
+                                        type="checkbox"
+                                        onChange={handleSelectAll}
+                                        checked={selectedTechnicians.length === paginatedTechnicians.length && paginatedTechnicians.length > 0}
+                                    />
+                                </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Technician Code</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
@@ -259,7 +308,14 @@ export default function Technicians() {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {paginatedTechnicians.map((technician) => (
-                                <tr key={technician._id}>
+                                <tr key={technician._id} className={selectedTechnicians.includes(technician._id) ? 'bg-gray-100' : ''}>
+                                    <td className="px-4 py-4 whitespace-nowrap">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedTechnicians.includes(technician._id)}
+                                            onChange={() => handleSelectTechnician(technician._id)}
+                                        />
+                                    </td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{technician.name}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.technicianCode}</td>
                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{technician.phone}</td>
@@ -373,24 +429,45 @@ export default function Technicians() {
                     <div className="bg-white rounded-lg p-6 w-full max-w-md">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Technician</h3>
                         <form onSubmit={handleUpdateTechnician}>
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Technician Code</label>
                                     <input type="text" value={selectedTechnician?.technicianCode || ''} className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100" disabled />
                                 </div>
-                                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
-                                <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
-                                <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
-                                <select name="state" value={formData.state} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
-                                    <option value="">Select State</option>
-                                    {states.map(state => <option key={state} value={state}>{state}</option>)}
-                                </select>
-                                <select name="city" value={formData.city} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
-                                    <option value="">Select City</option>
-                                    {cities.map(city => <option key={city} value={city}>{city}</option>)}
-                                </select>
-                                <input type="text" name="username" value={formData.username} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
-                                <input type="password" name="password" placeholder="New Password" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" />
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                                    <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Phone</label>
+                                    <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Address</label>
+                                    <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">State</label>
+                                    <select name="state" value={formData.state} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
+                                        <option value="">Select State</option>
+                                        {states.map(state => <option key={state} value={state}>{state}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">City</label>
+                                    <select name="city" value={formData.city} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
+                                        <option value="">Select City</option>
+                                        {cities.map(city => <option key={city} value={city}>{city}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Username</label>
+                                    <input type="text" name="username" value={formData.username} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">New Password</label>
+                                    <input type="password" name="password" placeholder="New Password" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" />
+                                </div>
                             </div>
                             <div className="mt-4 flex justify-end space-x-2">
                                 <button type="button" onClick={() => setShowEditModal(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>

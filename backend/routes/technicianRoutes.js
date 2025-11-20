@@ -1,5 +1,13 @@
 import express from 'express';
-import { createTechnician, getTechnicians, updateTechnician, deleteTechnician, getAssignedRequests, checkTechnicianCode } from '../controllers/technicianController.js';
+import {
+    createTechnician,
+    getTechnicians,
+    updateTechnician,
+    deleteTechnician,
+    deleteTechnicians,
+    checkTechnicianCode,
+    getAssignedRequests
+} from '../controllers/technicianController.js';
 import { verifyToken } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
@@ -24,6 +32,7 @@ router.get('/', verifyToken, isAdmin, getTechnicians);
 router.get('/check-code/:code', verifyToken, isAdmin, checkTechnicianCode);
 router.post('/', verifyToken, isAdmin, createTechnician);
 router.put('/:id', verifyToken, isAdmin, updateTechnician);
+router.delete('/', verifyToken, isAdmin, deleteTechnicians);
 router.delete('/:id', verifyToken, isAdmin, deleteTechnician);
 router.get('/requests', verifyToken, isTechnician, getAssignedRequests);
 

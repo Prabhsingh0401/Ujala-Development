@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Package, Tag } from 'lucide-react';
+import { Package, Tag, FileText } from 'lucide-react';
 import Categories from './Categories';
 import Models from './Models';
+import BillingContent from './Biilling/BillingContent';
 
 const Management = () => {
     const [activeTab, setActiveTab] = useState('categories');
@@ -37,11 +38,19 @@ const Management = () => {
                     isActive={activeTab === 'models'}
                     onClick={setActiveTab}
                 />
+                <TabButton
+                    id="billing"
+                    label="Billing"
+                    icon={FileText}
+                    isActive={activeTab === 'billing'}
+                    onClick={setActiveTab}
+                />
             </div>
 
             <div className="transition-all duration-300">
                 {activeTab === 'categories' && <Categories />}
                 {activeTab === 'models' && <Models />}
+                {activeTab === 'billing' && <BillingContent />}
             </div>
         </div>
     );

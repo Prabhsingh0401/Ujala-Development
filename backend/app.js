@@ -26,6 +26,7 @@ import dealerDeletionRequestRoutes from './routes/dealerDeletionRequestRoutes.js
 import technicianRoutes from './routes/technicianRoutes.js';
 import replacementRequestRoutes from './routes/replacementRequestRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
+import billingConfigRoutes from './routes/billingConfigRoutes.js';
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ app.use('/api/pdf', pdfRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/replacement-requests', replacementRequestRoutes);
 app.use('/api/technicians', technicianRoutes);
+app.use('/api/billing-config', billingConfigRoutes);
 
 app.get("/", (req, res) => {
   res.send("🚀 Backend is running!");

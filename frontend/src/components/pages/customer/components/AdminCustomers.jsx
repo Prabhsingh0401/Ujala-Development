@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { getCustomers, getCustomerPurchases } from '../services/customerService';
 import { toast } from 'react-hot-toast';
-import { ShoppingCart, X, Edit, Search } from 'lucide-react';
+import { ShoppingCart, X, Edit, Search, Trash2 } from 'lucide-react';
 import EditCustomerCredentialsModal from './EditCustomerCredentialsModal';
+import { CustomerFilters } from './CustomerFilters';
+import axios from 'axios';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -14,6 +16,11 @@ export default function Customers() {
   const [purchases, setPurchases] = useState([]);
   const [pLoading, setPLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [stateFilter, setStateFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
 
   // Pagination State for customers
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -38,6 +45,35 @@ export default function Customers() {
 
   useEffect(() => { fetchCustomers(); }, []);
 
+  useEffect(() => {
+    const fetchStates = async () => {
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/states`);
+            setStates(response.data);
+        } catch (error) {
+            console.error('Error fetching states:', error);
+        }
+    };
+    fetchStates();
+  }, []);
+
+  useEffect(() => {
+    const fetchCities = async (state) => {
+        if (!state || state === 'all') {
+            setCities([]);
+            setCityFilter('all');
+            return;
+        };
+        try {
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/cities/${state}`);
+            setCities(response.data);
+        } catch (error) {
+            console.error(`Error fetching cities for ${state}:`, error);
+        }
+    };
+    fetchCities(stateFilter);
+  }, [stateFilter]);
+
   const openPurchases = async (customer) => {
     setSelectedCustomer(customer);
     setModalOpen(true);
@@ -59,11 +95,68 @@ export default function Customers() {
     setEditModalOpen(true);
   };
 
-  // Filter customers based on search query
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone.includes(searchQuery)
-  );
+  const deleteCustomers = async (ids) => {
+    try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`${import.meta.env.VITE_API_URL}/api/customers`, {
+            headers: { Authorization: `Bearer ${token}` },
+            data: { ids },
+        });
+    } catch (error) {
+        throw error;
+    }
+  };
+
+  const handleSelectCustomer = (id) => {
+    setSelectedCustomers(prev =>
+        prev.includes(id) ? prev.filter(customerId => customerId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+      if (selectedCustomers.length === paginatedCustomers.length) {
+          setSelectedCustomers([]);
+      } else {
+          setSelectedCustomers(paginatedCustomers.map(c => c._id));
+      }
+  };
+
+  const handleDeleteSelected = async () => {
+      if (window.confirm(`Are you sure you want to delete ${selectedCustomers.length} selected customers?`)) {
+          try {
+              await deleteCustomers(selectedCustomers);
+              toast.success('Selected customers deleted successfully');
+              fetchCustomers();
+              setSelectedCustomers([]);
+          } catch (error) {
+              toast.error('Failed to delete selected customers');
+          }
+      }
+  };
+
+  const filteredCustomers = customers.filter(customer => {
+    const searchLower = searchQuery.toLowerCase();
+    const matchSearch = (
+        customer.name.toLowerCase().includes(searchLower) ||
+        customer.phone.includes(searchLower)
+    );
+
+    const matchState = stateFilter === 'all' || customer.state === stateFilter;
+    const matchCity = cityFilter === 'all' || customer.city === cityFilter;
+
+    return matchSearch && matchState && matchCity;
+  });
+
+  const uniqueStates = [...new Set(customers.map(c => c.state).filter(Boolean))];
+  const uniqueCities = [...new Set(customers.filter(c => c.state === stateFilter).map(c => c.city).filter(Boolean))];
+
+  useEffect(() => {
+    setStates(uniqueStates);
+  }, [customers]);
+
+  useEffect(() => {
+    setCities(uniqueCities);
+  }, [stateFilter, customers]);
 
   // Apply Pagination for customers
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
@@ -86,18 +179,32 @@ export default function Customers() {
 
       <p className="text-sm text-gray-900 mb-4">Total {filteredCustomers.length}</p>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="mb-4">
-            <div className="relative">
-                <input
-                    type="text"
-                    placeholder="Search by name or phone..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-1/3 p-2 pl-10 border border-gray-300 rounded-md"
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            </div>
+      <div className="bg-white rounded-lg p-1">
+        <CustomerFilters
+            searchTerm={searchQuery}
+            onSearchChange={setSearchQuery}
+            stateFilter={stateFilter}
+            onStateFilterChange={setStateFilter}
+            cityFilter={cityFilter}
+            onCityFilterChange={setCityFilter}
+            states={states}
+            cities={cities}
+            onClearFilters={() => {
+                setSearchQuery('');
+                setStateFilter('all');
+                setCityFilter('all');
+            }}
+        />
+        <div className="flex justify-end items-center mb-4">
+            {selectedCustomers.length > 0 && (
+                <button
+                    onClick={handleDeleteSelected}
+                    className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete ({selectedCustomers.length})
+                </button>
+            )}
         </div>
         {loading ? (
           <div className="text-center py-12">
@@ -109,6 +216,13 @@ export default function Customers() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      onChange={handleSelectAll}
+                      checked={selectedCustomers.length === paginatedCustomers.length && paginatedCustomers.length > 0}
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
@@ -120,11 +234,18 @@ export default function Customers() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">No customers found.</td>
+                    <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">No customers found.</td>
                   </tr>
                 ) : (
                   paginatedCustomers.map((c) => (
-                    <tr key={c._id}>
+                    <tr key={c._id} className={selectedCustomers.includes(c._id) ? 'bg-gray-100' : ''}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedCustomers.includes(c._id)}
+                          onChange={() => handleSelectCustomer(c._id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{c.name}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{c.phone}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{c.email || '-'}</td>

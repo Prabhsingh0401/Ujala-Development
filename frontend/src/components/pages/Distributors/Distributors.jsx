@@ -280,11 +280,11 @@ function Distributors() {
                             </div>
                         ) : (
                             <>
-                                <div className="hidden md:block overflow-x-auto">
+                                <div className="hidden md:block overflow-hidden">
                                     <table className="w-full">
                                         <thead className="bg-gray-50">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                     <input
                                                         type="checkbox"
                                                         onChange={handleSelectAll}
@@ -292,39 +292,36 @@ function Distributors() {
                                                         checked={paginatedDistributors.length > 0 && selectedDistributors.length === paginatedDistributors.length}
                                                     />
                                                 </th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th> */}
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
-                                                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th> */}
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Number</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                                                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th> */}
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products Count</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dealers</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Number</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products Count</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dealers</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
                                         <ListComponent
                                             items={paginatedDistributors}
                                             renderItem={(distributor) => (
                                                 <>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                         <input type="checkbox" checked={selectedDistributors.includes(distributor._id)} onChange={() => handleSelect(distributor._id)} />
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{distributor.distributorId}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.name}</td>
-                                                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.state}</td> */}
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.city}</td>
-                                                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.address}</td> */}
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.gstNumber}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{distributor.distributorId}</td>
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.name}</td>
+                                                    {/* <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.state}</td> */}
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.city}</td>
+                                                    {/* <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.address}</td> */}
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{distributor.gstNumber}</td>
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                                                         <div>
                                                             <p>{distributor.contactPerson}</p>
                                                             <p className="text-gray-500">{distributor.contactPhone}</p>
                                                         </div>
                                                     </td>
-                                                    {/* <td className="px-6 py-4 whitespace-nowrap">
+                                                    {/* <td className="px-4 py-4 whitespace-nowrap">
                                                         <div className="flex items-center gap-2">
                                                             <div className={`w-2 h-2 rounded-full ${distributor.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`}></div>
                                                             <select
