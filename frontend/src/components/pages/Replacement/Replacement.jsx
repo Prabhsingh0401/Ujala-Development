@@ -1,19 +1,23 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { RefreshCw, Check, X, Clock, UserCheck, CheckCircle, Paperclip, Eye, Loader, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Check, X, Clock, UserCheck, CheckCircle, Paperclip, Eye, DollarSign, Loader, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AssignTechnicianModal from './AssignTechnicianModal';
 import RequestDetailsModal from './RequestDetailsModal';
+import WarrantyDetailsModal from '../customer/WarrantyDetailsModal.jsx';
 
 export default function Replacement() {
     const [requests, setRequests] = useState([]);
+    const [billingConfig, setBillingConfig] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [activeTab, setActiveTab] = useState('pending');
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [selectedRequestForDetails, setSelectedRequestForDetails] = useState(null);
+    const [showWarrantyModal, setShowWarrantyModal] = useState(false);
+    const [selectedWarranty, setSelectedWarranty] = useState(null);
 
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
@@ -22,12 +26,19 @@ export default function Replacement() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/replacement-requests`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setRequests(res.data);
+            const [requestsRes, billingRes] = await Promise.all([
+                axios.get(`${import.meta.env.VITE_API_URL}/api/replacement-requests`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }),
+                axios.get(`${import.meta.env.VITE_API_URL}/api/billing-config`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ]);
+            setRequests(requestsRes.data);
+            setBillingConfig(billingRes.data);
         } catch (err) {
-            toast.error('Error fetching replacement requests');
+            toast.error('Error fetching data');
+            console.error('Error fetching data:', err);
         } finally {
             setLoading(false);
         }
@@ -74,6 +85,11 @@ export default function Replacement() {
     const handleViewDetails = (request) => {
         setSelectedRequestForDetails(request);
         setIsDetailsModalOpen(true);
+    };
+
+    const handleViewBilling = (warranty) => {
+        setSelectedWarranty(warranty);
+        setShowWarrantyModal(true);
     };
 
     const filteredRequests = requests.filter(req => {
@@ -300,6 +316,7 @@ export default function Replacement() {
                     isOpen={isDetailsModalOpen}
                     onClose={() => setIsDetailsModalOpen(false)}
                     request={selectedRequestForDetails}
+                    billingConfig={billingConfig}
                 />
             </div>
         </div>

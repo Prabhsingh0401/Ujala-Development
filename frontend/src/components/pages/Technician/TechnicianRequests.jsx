@@ -8,6 +8,7 @@ import DiagnoseModal from './DiagnoseModal';
 
 export default function TechnicianRequests() {
     const [requests, setRequests] = useState([]);
+    const [billingConfig, setBillingConfig] = useState(null);
     const [loading, setLoading] = useState(true);
     const { user } = useContext(AuthContext);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -19,13 +20,19 @@ export default function TechnicianRequests() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/technicians/requests`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            setRequests(res.data);
+            const [requestsRes, billingRes] = await Promise.all([
+                axios.get(`${import.meta.env.VITE_API_URL}/api/technicians/requests`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                }),
+                axios.get(`${import.meta.env.VITE_API_URL}/api/billing-config`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                })
+            ]);
+            setRequests(requestsRes.data);
+            setBillingConfig(billingRes.data);
         } catch (err) {
-            toast.error('Error fetching requests');
-            console.error('Error fetching requests:', err);
+            toast.error('Error fetching data');
+            console.error('Error fetching data:', err);
         } finally {
             setLoading(false);
         }
@@ -98,7 +105,7 @@ export default function TechnicianRequests() {
                 return 'bg-green-500';
             case 'Rejected':
                 return 'bg-red-500';
-            default:
+            default:              
                 return 'bg-gray-500';
         }
     };
@@ -197,6 +204,7 @@ export default function TechnicianRequests() {
                 <TechnicianRequestDetailsModal
                     isOpen={isDetailModalOpen}
                     request={selectedRequestForDetail}
+                    billingConfig={billingConfig}
                     onClose={() => setIsDetailModalOpen(false)}
                 />
             )}
@@ -204,6 +212,7 @@ export default function TechnicianRequests() {
                 <DiagnoseModal
                     isOpen={isDiagnoseModalOpen}
                     request={selectedRequestForDiagnosis}
+                    billingConfig={billingConfig}
                     onClose={() => setIsDiagnoseModalOpen(false)}
                     onSubmit={handleDiagnoseSubmit}
                 />

@@ -27,7 +27,7 @@ export const createReplacementRequest = async (req, res) => {
             return res.status(400).json({ message: 'An active replacement request for this product already exists.' });
         }
 
-        const mediaUrl = req.file ? req.file.path.replace('public\\', '') : null;
+        const mediaUrl = req.file ? req.file.path.replace(/\\/g, "/") : null;
 
         const replacementRequest = new ReplacementRequest({
             product: productId,
@@ -74,7 +74,7 @@ export const getReplacementRequests = async (req, res) => {
 
             // --- Warranty Calculation ---
             const sale = await Sale.findOne({ product: request.product?._id }).populate('distributor').populate('dealer');
-            if (sale && request.product?.model) {
+            if (sale && sale.saleDate && request.product?.model) {
                 const model = request.product.model;
                 const seller = sale.distributor || sale.dealer;
                 let warrantyInfo = null;
@@ -86,7 +86,7 @@ export const getReplacementRequests = async (req, res) => {
 
                     if (candidate) {
                         const months = candidate.durationType === 'Years' ? candidate.duration * 12 : candidate.duration;
-                        const soldAt = sale.saleDate ? new Date(sale.saleDate) : new Date(sale.createdAt);
+                        const soldAt = new Date(sale.saleDate);
                         const expiry = new Date(soldAt);
                         expiry.setMonth(expiry.getMonth() + months);
                         const now = new Date();
@@ -94,7 +94,10 @@ export const getReplacementRequests = async (req, res) => {
                         const daysLeft = inWarranty ? Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)) : 0;
 
                         warrantyInfo = {
-                            ...candidate,
+                            duration: candidate.duration,
+                            durationType: candidate.durationType,
+                            state: candidate.state,
+                            city: candidate.city,
                             expiryDate: expiry,
                             inWarranty,
                             daysLeft
@@ -102,6 +105,8 @@ export const getReplacementRequests = async (req, res) => {
                     }
                 }
                 request.warrantyInfo = warrantyInfo;
+            } else {
+                request.warrantyInfo = null;
             }
             // --- End Warranty Calculation ---
         }
@@ -205,10 +210,10 @@ export const addDiagnosis = async (req, res) => {
                 request.repairedParts = JSON.parse(repairedParts);
             }
             if (req.files?.beforeImage) {
-                request.beforeImagePath = req.files.beforeImage[0].path.replace('public\\', '');
+                request.beforeImagePath = req.files.beforeImage[0].path.replace(/\\/g, "/");
             }
             if (req.files?.afterImage) {
-                request.afterImagePath = req.files.afterImage[0].path.replace('public\\', '');
+                request.afterImagePath = req.files.afterImage[0].path.replace(/\\/g, "/");
             }
         } else if (serviceOutcome === 'Replacement Required') {
             request.status = 'Replacement Required';

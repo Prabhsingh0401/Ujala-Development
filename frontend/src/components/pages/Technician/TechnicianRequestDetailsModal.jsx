@@ -1,23 +1,48 @@
 import { X, Paperclip } from 'lucide-react';
 
-const DetailItem = ({ label, value }) => (
+const DetailItem = ({ label, value, isCurrency = false }) => (
     <div>
         <p className="text-sm font-medium text-gray-500">{label}</p>
-        <p className="mt-1 text-sm text-gray-900">{value || 'N/A'}</p>
+        <p className="mt-1 text-sm text-gray-900">
+            {isCurrency && value != null ? `₹${value}` : (value != null ? value : 'N/A')}
+        </p>
     </div>
 );
 
-export default function TechnicianRequestDetailsModal({ isOpen, onClose, request }) {
+export default function TechnicianRequestDetailsModal({ isOpen, onClose, request, billingConfig }) {
     if (!isOpen || !request) return null;
 
     const API_URL = import.meta.env.VITE_API_URL;
 
-    // Handle both old and new mediaUrl formats
-    let mediaPath = request.mediaUrl || '';
-    if (mediaPath.startsWith('public')) {
-        mediaPath = mediaPath.substring(7);
+    let finalMediaUrl = '';
+    if (request.mediaUrl) {
+        let mediaPath = request.mediaUrl.replace(/\\/g, '/');
+        // For backward compatibility with old data that doesn't have 'public/' prefix
+        if (mediaPath.startsWith('uploads/')) {
+            mediaPath = 'public/' + mediaPath;
+        }
+        finalMediaUrl = `${API_URL}/${mediaPath}`;
     }
-    const finalMediaUrl = `${API_URL}/${mediaPath.replace(/\\/g, '/')}`;
+
+    const warrantyDetails = request.warrantyInfo && billingConfig ? (
+        request.warrantyInfo.inWarranty ? {
+            title: 'In-Warranty Service',
+            serviceCharge: billingConfig.serviceCharge,
+            replacementCharge: billingConfig.replacementCharge,
+            tncUrl: billingConfig.termsAndConditionsUrl,
+        } : {
+            title: 'Out-of-Warranty Service',
+            serviceCharge: billingConfig.outOfWarrantyServiceCharge,
+            replacementCharge: billingConfig.outOfWarrantyReplacementCharge,
+            tncUrl: billingConfig.outOfWarrantyTermsAndConditionsUrl,
+        }
+    ) : null;
+
+    let totalBill = null;
+    if (warrantyDetails && !request.warrantyInfo.inWarranty && request.serviceOutcome === 'Repaired') {
+        const partsCost = request.repairedParts?.reduce((acc, part) => acc + (part.cost || 0), 0) || 0;
+        totalBill = (warrantyDetails.serviceCharge || 0) + (warrantyDetails.replacementCharge || 0) + partsCost;
+    }
 
     return (
         <div className="fixed inset-0 bg-black/80 bg-opacity-75 transition-opacity z-50 flex items-center justify-center">
@@ -67,6 +92,29 @@ export default function TechnicianRequestDetailsModal({ isOpen, onClose, request
                                 <DetailItem label="Status" value={request.status} />
                                 <DetailItem label="Warranty" value={request.warrantyInfo?.inWarranty ? 'In Warranty' : 'Out of Warranty'} />
                             </div>
+                            
+                            {/* Billing Information */}
+                            {warrantyDetails && (
+                                <div className="space-y-4">
+                                    <h4 className="font-medium text-gray-700">Billing Information</h4>
+                                    <DetailItem label="Service Charge" value={warrantyDetails.serviceCharge} isCurrency />
+                                    <DetailItem label="Replacement Charge" value={warrantyDetails.replacementCharge} isCurrency />
+                                    {totalBill !== null && (
+                                        <div className="pt-2 border-t border-gray-200">
+                                            <DetailItem label="Total Bill" value={totalBill} isCurrency />
+                                        </div>
+                                    )}
+                                    {warrantyDetails.tncUrl && (
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Terms & Conditions</p>
+                                            <a href={`${API_URL}/${warrantyDetails.tncUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-indigo-600 hover:text-indigo-900 mt-1">
+                                                <Paperclip className="h-4 w-4 mr-1" />
+                                                View T&C
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Right Column for Attached Media */}

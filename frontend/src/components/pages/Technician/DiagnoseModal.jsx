@@ -1,8 +1,17 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Paperclip } from 'lucide-react';
 
-export default function DiagnoseModal({ isOpen, onClose, onSubmit, request }) {
+const DetailItem = ({ label, value, isCurrency = false }) => (
+    <div>
+        <p className="text-sm font-medium text-gray-500">{label}</p>
+        <p className="mt-1 text-sm text-gray-900">
+            {isCurrency && value != null ? `₹${value}` : (value != null ? value : 'N/A')}
+        </p>
+    </div>
+);
+
+export default function DiagnoseModal({ isOpen, onClose, onSubmit, request, billingConfig }) {
     const [diagnosisNotes, setDiagnosisNotes] = useState('');
     const [serviceOutcome, setServiceOutcome] = useState('');
     const [parts, setParts] = useState([{ name: '', cost: '' }]);
@@ -10,6 +19,28 @@ export default function DiagnoseModal({ isOpen, onClose, onSubmit, request }) {
     const [afterImage, setAfterImage] = useState(null);
 
     if (!isOpen) return null;
+
+    const API_URL = import.meta.env.VITE_API_URL;
+    
+    const warrantyDetails = request.warrantyInfo && billingConfig ? (
+        request.warrantyInfo.inWarranty ? {
+            title: 'In-Warranty Service',
+            serviceCharge: billingConfig.serviceCharge,
+            replacementCharge: billingConfig.replacementCharge,
+            tncUrl: billingConfig.termsAndConditionsUrl,
+        } : {
+            title: 'Out-of-Warranty Service',
+            serviceCharge: billingConfig.outOfWarrantyServiceCharge,
+            replacementCharge: billingConfig.outOfWarrantyReplacementCharge,
+            tncUrl: billingConfig.outOfWarrantyTermsAndConditionsUrl,
+        }
+    ) : null;
+    
+    const partsCost = parts.reduce((acc, part) => acc + (Number(part.cost) || 0), 0);
+    let totalBill = null;
+    if (warrantyDetails && !request.warrantyInfo.inWarranty && serviceOutcome === 'Repaired') {
+        totalBill = (warrantyDetails.serviceCharge || 0) + (warrantyDetails.replacementCharge || 0) + partsCost;
+    }
 
     const handlePartChange = (index, field, value) => {
         const newParts = [...parts];
@@ -60,40 +91,66 @@ export default function DiagnoseModal({ isOpen, onClose, onSubmit, request }) {
                     </button>
                 </div>
 
-                <div className="overflow-y-auto space-y-4 pr-2 flex justify-between">
-                    {/* Diagnosis Notes */}
-                    <div className='w-1/2'>
-                    <div>
-                        <label htmlFor="diagnosis" className="block text-sm font-medium text-gray-700 mb-1">Diagnosis Notes</label>
-                        <textarea
-                            id="diagnosis"
-                            value={diagnosisNotes}
-                            onChange={(e) => setDiagnosisNotes(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                            rows="4"
-                            placeholder="Describe your findings..."
-                        ></textarea>
-                    </div>
+                <div className="overflow-y-auto space-y-4 pr-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left Column */}
+                    <div className="space-y-4">
+                        {/* Diagnosis Notes */}
+                        <div>
+                            <label htmlFor="diagnosis" className="block text-sm font-medium text-gray-700 mb-1">Diagnosis Notes</label>
+                            <textarea
+                                id="diagnosis"
+                                value={diagnosisNotes}
+                                onChange={(e) => setDiagnosisNotes(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                rows="4"
+                                placeholder="Describe your findings..."
+                            ></textarea>
+                        </div>
 
-                    {/* Service Outcome */}
-                    <div>
-                        <label htmlFor="outcome" className="block text-sm font-medium text-gray-700 mb-1">Service Outcome</label>
-                        <select
-                            id="outcome"
-                            value={serviceOutcome}
-                            onChange={(e) => setServiceOutcome(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        >
-                            <option value="">-- Select Outcome --</option>
-                            <option value="Repaired">Repaired</option>
-                            <option value="Replacement Required">Replacement Required</option>
-                        </select>
-                    </div>
-                    </div>
+                        {/* Service Outcome */}
+                        <div>
+                            <label htmlFor="outcome" className="block text-sm font-medium text-gray-700 mb-1">Service Outcome</label>
+                            <select
+                                id="outcome"
+                                value={serviceOutcome}
+                                onChange={(e) => setServiceOutcome(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="">-- Select Outcome --</option>
+                                <option value="Repaired">Repaired</option>
+                                <option value="Replacement Required">Replacement Required</option>
+                            </select>
+                        </div>
 
-                    {/* Conditional Section for "Repaired" */}
+                        {/* Billing Information */}
+                        {warrantyDetails && (
+                            <div className="space-y-2">
+                                <h4 className="font-medium text-gray-700">Billing Information</h4>
+                                <DetailItem label="Service Charge" value={warrantyDetails.serviceCharge} isCurrency />
+                                <DetailItem label="Replacement Charge" value={warrantyDetails.replacementCharge} isCurrency />
+                                {serviceOutcome === 'Repaired' && (
+                                    <DetailItem label="Parts Cost" value={partsCost} isCurrency />
+                                )}
+                                {totalBill !== null && (
+                                    <div className="pt-2 border-t border-gray-200">
+                                        <DetailItem label="Total Bill" value={totalBill} isCurrency />
+                                    </div>
+                                )}
+                                {warrantyDetails.tncUrl && (
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-500">Terms & Conditions</p>
+                                        <a href={`${API_URL}/${warrantyDetails.tncUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-indigo-600 hover:text-indigo-900 mt-1">
+                                            <Paperclip className="h-4 w-4 mr-1" />
+                                            View T&C
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    {/* Right Column */}
                     {serviceOutcome === 'Repaired' && (
-                        <div className="p-4 border border-gray-200 rounded-lg space-y-4 bg-gray-50 ml-5 w-1/2">
+                        <div className="p-4 border border-gray-200 rounded-lg space-y-4 bg-gray-50">
                             <h4 className="font-semibold text-gray-800">Repair Details</h4>
                             
                             {parts.map((part, index) => (

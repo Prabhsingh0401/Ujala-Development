@@ -1,7 +1,9 @@
 import { useEffect, useState, useContext } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { ShoppingCart, RefreshCw } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Eye } from 'lucide-react';
+import WarrantyDetailsModal from './WarrantyDetailsModal';
+
 
 const ComplaintModal = ({ isOpen, onClose, onSubmit, sale, product }) => {
     const [complaintDescription, setComplaintDescription] = useState('');
@@ -96,24 +98,31 @@ const ComplaintModal = ({ isOpen, onClose, onSubmit, sale, product }) => {
 export default function CustomerPurchases() {
     const [sales, setSales] = useState([]);
     const [replacementRequests, setReplacementRequests] = useState([]);
+    const [billingConfig, setBillingConfig] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
     const [selectedSale, setSelectedSale] = useState(null);
+    const [showWarrantyModal, setShowWarrantyModal] = useState(false);
+    const [selectedWarranty, setSelectedWarranty] = useState(null);
 
     const fetchData = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const [salesRes, requestsRes] = await Promise.all([
+            const [salesRes, requestsRes, billingRes] = await Promise.all([
                 axios.get(`${import.meta.env.VITE_API_URL}/api/sales/customer`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
                 axios.get(`${import.meta.env.VITE_API_URL}/api/replacement-requests/customer`, {
                     headers: { Authorization: `Bearer ${token}` }
+                }),
+                axios.get(`${import.meta.env.VITE_API_URL}/api/billing-config`, {
+                    headers: { Authorization: `Bearer ${token}` }
                 })
             ]);
             setSales(salesRes.data);
             setReplacementRequests(requestsRes.data);
+            setBillingConfig(billingRes.data);
         } catch (err) {
             toast.error('Error fetching your data');
             console.error('Error fetching customer data:', err);
@@ -124,8 +133,14 @@ export default function CustomerPurchases() {
 
     useEffect(() => { fetchData(); }, []);
 
-    const handleComplaintClick = (sale) => {
+    const handleComplaintFlowStart = (sale) => {
         setSelectedSale(sale);
+        setSelectedWarranty(sale.warrantyInfo);
+        setShowWarrantyModal(true);
+    };
+
+    const handleContinueToComplaint = () => {
+        setShowWarrantyModal(false);
         setShowComplaintModal(true);
     };
 
@@ -186,36 +201,33 @@ export default function CustomerPurchases() {
 
                                 <div className="mt-4">
                                     {warranty ? (
-                                        <div>
-                                            <div className={`inline-block px-2 py-1 rounded text-sm ${warranty.inWarranty ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                {warranty.inWarranty ? 'In Warranty' : 'Warranty Expired'}
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <div className={`inline-block px-2 py-1 rounded text-sm ${warranty.inWarranty ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                    {warranty.inWarranty ? 'In Warranty' : 'Warranty Expired'}
+                                                </div>
+                                                <div className="text-xs text-gray-500 mt-1">Expires: {new Date(warranty.expiryDate).toLocaleDateString()}</div>
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">Expires: {new Date(warranty.expiryDate).toLocaleDateString()}</div>
                                         </div>
                                     ) : (
                                         <div className="text-sm text-gray-500">No warranty</div>
                                     )}
 
-                                    {warranty?.inWarranty ? (
-                                        <button
-                                            onClick={() => handleComplaintClick(sale)}
-                                            className="mt-4 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            disabled={request && request.status !== 'Rejected'}
-                                        >
-                                            <RefreshCw className="h-4 w-4 mr-2" />
-                                            Claim Warranty
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => handleComplaintClick(sale)}
-                                            className="mt-4 w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            disabled={request && request.status !== 'Rejected'}
-                                        >
-                                            <RefreshCw className="h-4 w-4 mr-2" />
-                                            Raise Complaint
-                                        </button>
-                                    )}
-
+                                    <div className="mt-4">
+                                        {warranty ? (
+                                            <button
+                                                onClick={() => handleComplaintFlowStart(sale)}
+                                                className={`w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${warranty.inWarranty ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-red-600 hover:bg-red-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                disabled={request && request.status !== 'Rejected'}
+                                            >
+                                                <RefreshCw className="h-4 w-4 mr-2" />
+                                                {warranty.inWarranty ? 'Claim Warranty' : 'Raise Complaint'}
+                                            </button>
+                                        ) : (
+                                            <div className="text-sm text-gray-500">No warranty info</div>
+                                        )}
+                                    </div>
+                                    
                                     {request && request.status === 'Pending' && (
                                         <div className="mt-4 text-sm text-yellow-600">Replacement request under review</div>
                                     )}
@@ -247,6 +259,16 @@ export default function CustomerPurchases() {
                     onSubmit={handleConfirmComplaint}
                     sale={selectedSale}
                     product={selectedSale.product}
+                />
+            )}
+
+            {selectedWarranty && (
+                <WarrantyDetailsModal
+                    isOpen={showWarrantyModal}
+                    onClose={() => setShowWarrantyModal(false)}
+                    onContinue={handleContinueToComplaint}
+                    inWarranty={selectedWarranty.inWarranty}
+                    billingConfig={billingConfig}
                 />
             )}
         </div>

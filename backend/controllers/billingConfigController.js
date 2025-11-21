@@ -69,7 +69,7 @@ export const updateInWarrantyConfig = asyncHandler(async (req, res) => {
                 const oldFilePath = path.join(process.cwd(), config.termsAndConditionsUrl);
                 if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
             }
-            config.termsAndConditionsUrl = req.file.path;
+            config.termsAndConditionsUrl = req.file.path.replace(/\\/g, "/");
         } else if (req.body.clearPdf === 'true') {
             if (config.termsAndConditionsUrl) {
                 const oldFilePath = path.join(process.cwd(), config.termsAndConditionsUrl);
@@ -104,7 +104,7 @@ export const updateOutOfWarrantyConfig = asyncHandler(async (req, res) => {
                 const oldFilePath = path.join(process.cwd(), config.outOfWarrantyTermsAndConditionsUrl);
                 if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
             }
-            config.outOfWarrantyTermsAndConditionsUrl = req.file.path;
+            config.outOfWarrantyTermsAndConditionsUrl = req.file.path.replace(/\\/g, "/");
         } else if (req.body.clearPdf === 'true') {
             if (config.outOfWarrantyTermsAndConditionsUrl) {
                 const oldFilePath = path.join(process.cwd(), config.outOfWarrantyTermsAndConditionsUrl);

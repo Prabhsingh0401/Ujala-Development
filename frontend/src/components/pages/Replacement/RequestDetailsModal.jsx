@@ -4,33 +4,68 @@ const DetailItem = ({ label, value, isCurrency = false }) => (
     <div className="flex flex-col">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
         <p className="mt-1 text-md text-gray-800">
-            {isCurrency && value ? `₹${value}` : (value || <span className="text-gray-400">N/A</span>)}
+            {isCurrency && value != null ? `₹${value}` : (value != null ? value : <span className="text-gray-400">N/A</span>)}
         </p>
     </div>
 );
 
-const ImageItem = ({ label, path, api_url }) => (
-    <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
-        {path ? (
-            <img src={`${api_url}/${path.replace(/\\/g, '/')}`} alt={label} className="rounded-lg h-48 w-full object-cover border border-gray-200 shadow-sm" />
-        ) : (
-            <p className="mt-1 text-sm text-gray-400">Not available</p>
-        )}
-    </div>
-);
+const ImageItem = ({ label, path, api_url }) => {
+    let imageUrl = '';
+    if (path) {
+        let imagePath = path.replace(/\\/g, '/');
+        // For backward compatibility with old data that doesn't have 'public/' prefix
+        if (imagePath.startsWith('uploads/')) {
+            imagePath = 'public/' + imagePath;
+        }
+        imageUrl = `${api_url}/${imagePath}`;
+    }
 
-export default function RequestDetailsModal({ isOpen, onClose, request }) {
+    return (
+        <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+            {imageUrl ? (
+                <img src={imageUrl} alt={label} className="rounded-lg h-48 w-full object-cover border border-gray-200 shadow-sm" />
+            ) : (
+                <p className="mt-1 text-sm text-gray-400">Not available</p>
+            )}
+        </div>
+    );
+};
+
+export default function RequestDetailsModal({ isOpen, onClose, request, billingConfig }) {
     if (!isOpen || !request) return null;
 
     const API_URL = import.meta.env.VITE_API_URL;
 
-    // Handle both old and new mediaUrl formats
-    let mediaPath = request.mediaUrl || '';
-    if (mediaPath.startsWith('public')) {
-        mediaPath = mediaPath.substring(7);
+    let finalMediaUrl = '';
+    if (request.mediaUrl) {
+        let mediaPath = request.mediaUrl.replace(/\\/g, '/');
+        // For backward compatibility with old data that doesn't have 'public/' prefix
+        if (mediaPath.startsWith('uploads/')) {
+            mediaPath = 'public/' + mediaPath;
+        }
+        finalMediaUrl = `${API_URL}/${mediaPath}`;
     }
-    const finalMediaUrl = `${API_URL}/${mediaPath.replace(/\\/g, '/')}`;
+    
+    const warrantyDetails = request.warrantyInfo && billingConfig ? (
+        request.warrantyInfo.inWarranty ? {
+            title: 'In-Warranty Service',
+            serviceCharge: billingConfig.serviceCharge,
+            replacementCharge: billingConfig.replacementCharge,
+            tncUrl: billingConfig.termsAndConditionsUrl,
+        } : {
+            title: 'Out-of-Warranty Service',
+            serviceCharge: billingConfig.outOfWarrantyServiceCharge,
+            replacementCharge: billingConfig.outOfWarrantyReplacementCharge,
+            tncUrl: billingConfig.outOfWarrantyTermsAndConditionsUrl,
+        }
+    ) : null;
+
+    let totalBill = null;
+    if (warrantyDetails && !request.warrantyInfo.inWarranty && request.serviceOutcome === 'Repaired') {
+        const partsCost = request.repairedParts?.reduce((acc, part) => acc + (part.cost || 0), 0) || 0;
+        totalBill = (warrantyDetails.serviceCharge || 0) + (warrantyDetails.replacementCharge || 0) + partsCost;
+    }
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -84,6 +119,31 @@ export default function RequestDetailsModal({ isOpen, onClose, request }) {
                                     <DetailItem label="Job Card #" value={request.jcNumber} />
                                 </div>
                             </section>
+                            
+                            {/* Billing Information */}
+                            {warrantyDetails && (
+                                <section>
+                                    <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Billing Information</h4>
+                                    <div className="space-y-4">
+                                        <DetailItem label="Service Charge" value={warrantyDetails.serviceCharge} isCurrency />
+                                        <DetailItem label="Replacement Charge" value={warrantyDetails.replacementCharge} isCurrency />
+                                        {totalBill !== null && (
+                                            <div className="pt-4 border-t border-gray-200">
+                                                <DetailItem label="Total Bill" value={totalBill} isCurrency />
+                                            </div>
+                                        )}
+                                        {warrantyDetails.tncUrl && (
+                                            <div>
+                                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Terms & Conditions</p>
+                                                <a href={`${API_URL}/${warrantyDetails.tncUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:text-blue-800 font-semibold mt-1">
+                                                    <Paperclip className="h-4 w-4 mr-1" />
+                                                    View T&C
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+                            )}
                         </div>
 
                         {/* Right Column */}
