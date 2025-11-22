@@ -9,6 +9,8 @@ import axios from 'axios';
 
 import DealerProductGroupList from './components/DealerProductGroupList';
 import { DealerFilters } from './components/DealerFilters';
+import ExportToExcelButton from '../../global/ExportToExcelButton';
+import ExportToPdfButton from '../../global/ExportToPdfButton';
 
 function Dealers() {
     const {
@@ -74,6 +76,24 @@ function Dealers() {
     });
 
     const [cities, setCities] = useState([]);
+
+    const dealerColumns = [
+        { header: 'ID', accessor: 'ID' },
+        { header: 'Name', accessor: 'Name' },
+        { header: 'City', accessor: 'City' },
+        { header: 'Distributor', accessor: 'Distributor' },
+        { header: 'Products Count', accessor: 'Products Count' },
+    ];
+
+    const getExportData = () => {
+        return filteredDealers.map(dealer => ({
+            'ID': dealer.dealerId,
+            'Name': dealer.name,
+            'City': dealer.city,
+            'Distributor': dealer.distributor?.name || 'N/A',
+            'Products Count': dealer.productCount || 0,
+        }));
+    };
 
     useEffect(() => {
         const fetchStates = async () => {
@@ -205,6 +225,10 @@ function Dealers() {
                                 </p>
                             </div>
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                                <div className="flex items-center space-x-2">
+                                    <ExportToExcelButton getData={getExportData} filename="dealers-export" />
+                                    <ExportToPdfButton getData={getExportData} columns={dealerColumns} filename="dealers-export" />
+                                </div>
                                 {selectedDealers.length > 0 ? (
                                     <button
                                         onClick={handleDeleteSelected}

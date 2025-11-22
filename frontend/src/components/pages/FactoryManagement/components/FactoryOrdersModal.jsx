@@ -3,6 +3,8 @@ import { Search, X } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { getFactoryOrders, bulkUpdateOrderStatus } from '../services/factoryService';
+import ExportToExcelButton from '../../../global/ExportToExcelButton';
+import ExportToPdfButton from '../../../global/ExportToPdfButton';
 
 export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFactories, initialTab }) {
     const [factoryOrders, setFactoryOrders] = useState([]);
@@ -84,6 +86,40 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
         setModalActiveTab('all');
         fetchFactories();
         onClose();
+    };
+
+    const orderColumns = [
+        { header: 'Order ID', accessor: 'Order ID' },
+        { header: 'Box', accessor: 'Box' },
+        { header: 'Serial Numbers', accessor: 'Serial Numbers' },
+        { header: 'Model', accessor: 'Model' },
+        { header: 'Type', accessor: 'Type' },
+        { header: 'Created Date', accessor: 'Created Date' },
+        { header: 'Status', accessor: 'Status' },
+        { header: 'Completed Date', accessor: 'Completed Date' },
+        { header: 'Dispatched Date', accessor: 'Dispatched Date' },
+    ];
+
+    const getExportData = () => {
+        return groupedOrders.map(([boxKey, boxData]) => {
+            const validCompletionDates = boxData.items.map(item => item.completedAt).filter(Boolean).map(date => new Date(date));
+            const latestCompletionDate = validCompletionDates.length ? new Date(Math.max.apply(null, validCompletionDates)) : null;
+
+            const validDispatchDates = boxData.items.map(item => item.dispatchedAt).filter(Boolean).map(date => new Date(date));
+            const latestDispatchDate = validDispatchDates.length ? new Date(Math.max.apply(null, validDispatchDates)) : null;
+
+            return {
+                'Order ID': boxData.orderId,
+                'Box': `Box ${boxData.boxNumber}`,
+                'Serial Numbers': boxData.items.map(it => it?.serialNumber).join(', '),
+                'Model': boxData.model?.name,
+                'Type': boxData.orderType === '2_units' ? '2 Units' : boxData.orderType === '3_units' ? '3 Units' : '1 Unit',
+                'Created Date': new Date(boxData.items[0].createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+                'Status': boxData.items[0].status,
+                'Completed Date': latestCompletionDate ? new Date(latestCompletionDate).toLocaleDateString('en-GB') : '-',
+                'Dispatched Date': latestDispatchDate ? new Date(latestDispatchDate).toLocaleDateString('en-GB') : '-',
+            };
+        });
     };
     
     const handleSelectAll = () => {
@@ -231,6 +267,11 @@ export default function FactoryOrdersModal({ isOpen, onClose, factory, fetchFact
                             >
                                 Clear Filters
                             </button>
+                        </div>
+
+                        <div className="flex items-center justify-start gap-2">    
+                        <ExportToExcelButton getData={getExportData} filename={`${factory?.name}-orders`} />
+                        <ExportToPdfButton getData={getExportData} columns={orderColumns} filename={`${factory?.name}-orders`} />
                         </div>
 
                         {selectedItems.length > 0 && (

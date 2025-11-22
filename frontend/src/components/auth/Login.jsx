@@ -143,9 +143,10 @@ export default function Login() {
     return (
         <div className="flex md:flex-row flex-col h-full bg-gray-50">
             <div className="hidden md:flex w-1/4 bg-gradient-to-br from-[#5b189b] to-[#5b189b] text-white items-center justify-center p-12">
-                <div>
-                    <h1 className="text-3xl md:text-5xl font-bold mb-4">WarrenTech Dashboard</h1>
-                    <p className="text-md md:text-lg text-gray-200">Streamlining factory and order management.</p>
+                <div className='flex flex-col justify-center items-center'>
+                    <img src="/Warrantech_logo.png" alt="WarranTech Logo" className="w-50" />
+                    <h1 className="text-3xl md:text-5xl font-bold mb-4">WarranTech Dashboard</h1>
+                    <p className="text-md md:text-lg text-gray-200">QR-Driven Confidence for Every Product.</p>
                 </div>
             </div>
             <div className="w-full md:w-3/4 flex items-center justify-center p-8">

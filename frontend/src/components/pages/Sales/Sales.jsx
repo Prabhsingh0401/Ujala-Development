@@ -3,6 +3,8 @@ import { Search, Package, MapPin, Calendar, User, Building, Shield, Clock } from
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { SaleFilters } from './components/SaleFilters';
+import ExportToExcelButton from '../../global/ExportToExcelButton';
+import ExportToPdfButton from '../../global/ExportToPdfButton';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -46,6 +48,64 @@ export default function Sales() {
         }
     };
 
+    const getWarrantyInfo = (product) => {
+        if (!product.model?.warranty || !product.distributor) {
+            return { status: 'No Warranty Info', remaining: 'N/A' };
+        }
+
+        const distributorState = product.distributor.state;
+        const distributorCity = product.distributor.city;
+        
+        const warrantyConfig = product.model.warranty.find(w => 
+            w.state.toLowerCase() === distributorState.toLowerCase() && 
+            w.city.toLowerCase() === distributorCity.toLowerCase()
+        ) || product.model.warranty.find(w => 
+            w.state.toLowerCase() === distributorState.toLowerCase()
+        );
+
+        if (!warrantyConfig) {
+            return { status: 'No Warranty Config', remaining: 'N/A' };
+        }
+
+        if (!product.sold) {
+            return { status: 'Not Yet Sold', remaining: 'Warranty starts on sale' };
+        }
+
+        // Calculate warranty expiry
+        const saleDate = new Date(product.saleDate);
+        const warrantyDuration = warrantyConfig.duration;
+        const durationType = warrantyConfig.durationType;
+        
+        const expiryDate = new Date(saleDate);
+        if (durationType === 'Years') {
+            expiryDate.setFullYear(expiryDate.getFullYear() + warrantyDuration);
+        } else {
+            expiryDate.setMonth(expiryDate.getMonth() + warrantyDuration);
+        }
+
+        const now = new Date();
+        const timeRemaining = expiryDate - now;
+        
+        if (timeRemaining <= 0) {
+            return { status: 'Expired', remaining: 'Warranty expired' };
+        }
+
+        const daysRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60 * 24));
+        const monthsRemaining = Math.floor(daysRemaining / 30);
+        
+        let remainingText;
+        if (monthsRemaining > 0) {
+            remainingText = `${monthsRemaining} months remaining`;
+        } else {
+            remainingText = `${daysRemaining} days remaining`;
+        }
+
+        return { 
+            status: 'Active', 
+            remaining: remainingText, 
+        };
+    };
+
     const filteredProducts = useMemo(() => {
         return products.filter(product => {
             const searchLower = searchTerm.toLowerCase();
@@ -79,63 +139,33 @@ export default function Sales() {
         return filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
     }, [filteredProducts, currentPage, itemsPerPage]);
 
-    const getWarrantyInfo = (product) => {
-        if (!product.model?.warranty || !product.distributor) {
-            return { status: 'No Warranty Info', remaining: 'N/A', color: 'text-gray-500' };
-        }
+    const salesColumns = [
+        { header: 'Model', accessor: 'Model' },
+        { header: 'Serial Number', accessor: 'Serial Number' },
+        { header: 'Distributor', accessor: 'Distributor' },
+        { header: 'Customer', accessor: 'Customer' },
+        { header: 'Assigned Date', accessor: 'Assigned Date' },
+        { header: 'Dealer', accessor: 'Dealer' },
+        { header: 'Factory', accessor: 'Factory' },
+        { header: 'Warranty Status', accessor: 'Warranty Status' },
+        { header: 'Warranty Balance', accessor: 'Warranty Balance' },
+    ];
 
-        const distributorState = product.distributor.state;
-        const distributorCity = product.distributor.city;
-        
-        const warrantyConfig = product.model.warranty.find(w => 
-            w.state.toLowerCase() === distributorState.toLowerCase() && 
-            w.city.toLowerCase() === distributorCity.toLowerCase()
-        ) || product.model.warranty.find(w => 
-            w.state.toLowerCase() === distributorState.toLowerCase()
-        );
-
-        if (!warrantyConfig) {
-            return { status: 'No Warranty Config', remaining: 'N/A', color: 'text-gray-500' };
-        }
-
-        if (!product.sold) {
-            return { status: 'Not Yet Sold', remaining: 'Warranty starts on sale', color: 'text-orange-500' };
-        }
-
-        // Calculate warranty expiry
-        const saleDate = new Date(product.saleDate);
-        const warrantyDuration = warrantyConfig.duration;
-        const durationType = warrantyConfig.durationType;
-        
-        const expiryDate = new Date(saleDate);
-        if (durationType === 'Years') {
-            expiryDate.setFullYear(expiryDate.getFullYear() + warrantyDuration);
-        } else {
-            expiryDate.setMonth(expiryDate.getMonth() + warrantyDuration);
-        }
-
-        const now = new Date();
-        const timeRemaining = expiryDate - now;
-        
-        if (timeRemaining <= 0) {
-            return { status: 'Expired', remaining: 'Warranty expired', color: 'text-red-500' };
-        }
-
-        const daysRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60 * 24));
-        const monthsRemaining = Math.floor(daysRemaining / 30);
-        
-        let remainingText;
-        if (monthsRemaining > 0) {
-            remainingText = `${monthsRemaining} months remaining`;
-        } else {
-            remainingText = `${daysRemaining} days remaining`;
-        }
-
-        return { 
-            status: 'Active', 
-            remaining: remainingText, 
-            color: daysRemaining > 30 ? 'text-green-500' : 'text-yellow-500' 
-        };
+    const getExportData = () => {
+        return filteredProducts.map(product => {
+            const warrantyInfo = getWarrantyInfo(product);
+            return {
+                'Model': product.model?.name || 'N/A',
+                'Serial Number': product.serialNumber,
+                'Distributor': product.distributor?.name || 'N/A',
+                'Customer': product.sale ? `${product.sale.customerName || '-'} (${product.sale.customerPhone || '-'})` : '-',
+                'Assigned Date': product.assignedToDistributorAt ? new Date(product.assignedToDistributorAt).toLocaleDateString() : 'N/A',
+                'Dealer': product.dealer?.name || 'NA',
+                'Factory': product.factory?.name || 'N/A',
+                'Warranty Status': warrantyInfo.status,
+                'Warranty Balance': warrantyInfo.remaining,
+            };
+        });
     };
 
     if (loading) {
@@ -157,9 +187,15 @@ export default function Sales() {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="p-4 lg:p-6">
                     <div className="space-y-4">
-                        <div className="flex-shrink-0">
-                            <h2 className="text-lg font-semibold text-gray-900">Sales</h2>
-                            <p className="text-sm text-gray-600">Products assigned to distributors: {filteredProducts.length}</p>
+                        <div className="flex justify-between items-center">
+                            <div className="flex-shrink-0">
+                                <h2 className="text-lg font-semibold text-gray-900">Sales</h2>
+                                <p className="text-sm text-gray-600">Total Sales : {filteredProducts.length}</p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <ExportToExcelButton getData={getExportData} filename="sales-export" />
+                                <ExportToPdfButton getData={getExportData} columns={salesColumns} filename="sales-export" />
+                            </div>
                         </div>
                         <SaleFilters
                             searchTerm={searchTerm}
@@ -281,7 +317,7 @@ export default function Sales() {
                                                 <td className="px-4 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
                                                         <Shield className="h-4 w-4 text-gray-400 mr-2" />
-                                                        <span className={`text-sm font-medium ${warrantyInfo.color}`}>
+                                                        <span className={`text-sm font-medium ${getWarrantyInfo(product).color}`}>
                                                             {warrantyInfo.status}
                                                         </span>
                                                     </div>
@@ -289,7 +325,7 @@ export default function Sales() {
                                                 <td className="px-4 py-4 whitespace-nowrap">
                                                     <div className="flex items-center">
                                                         <Clock className="h-4 w-4 text-gray-400 mr-2" />
-                                                        <span className={`text-sm ${warrantyInfo.color}`}>
+                                                        <span className={`text-sm ${getWarrantyInfo(product).color}`}>
                                                             {warrantyInfo.remaining}
                                                         </span>
                                                     </div>

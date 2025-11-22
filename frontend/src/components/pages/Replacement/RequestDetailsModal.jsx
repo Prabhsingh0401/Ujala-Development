@@ -24,7 +24,7 @@ const ImageItem = ({ label, path, api_url }) => {
         <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
             {imageUrl ? (
-                <img src={imageUrl} alt={label} className="rounded-lg h-48 w-full object-cover border border-gray-200 shadow-sm" />
+                <img src={imageUrl} alt={label} className="rounded-lg h-32 w-full object-cover border border-gray-200 shadow-sm" />
             ) : (
                 <p className="mt-1 text-sm text-gray-400">Not available</p>
             )}
@@ -69,7 +69,7 @@ export default function RequestDetailsModal({ isOpen, onClose, request, billingC
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl transform transition-all sm:my-8 sm:max-w-4xl w-full">
+            <div className="bg-white rounded-2xl shadow-2xl transform transition-all sm:my-8 sm:max-w-5xl w-full">
                 <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
                     <h3 className="text-lg leading-6 font-medium text-gray-900">
                         Request Details
@@ -78,7 +78,7 @@ export default function RequestDetailsModal({ isOpen, onClose, request, billingC
                         <X className="h-6 w-6" />
                     </button>
                 </div>
-                <div className="px-8 py-6 max-h-[60vh] overflow-y-auto overflow-x-auto">
+                <div className="px-8 py-6 max-h-[70vh] overflow-y-auto overflow-x-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                         {/* Left Column */}
                         <div className="space-y-8">
@@ -86,7 +86,7 @@ export default function RequestDetailsModal({ isOpen, onClose, request, billingC
                             <section>
                                 <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Product Information</h4>
                                 <div className="space-y-4">
-                                    <DetailItem label="Product Name" value={request.product?.model?.name} />
+                                    <DetailItem label="Model Name" value={request.product?.model?.name} />
                                     <DetailItem label="Serial Number" value={request.product?.serialNumber} />
                                 </div>
                             </section>
@@ -109,10 +109,30 @@ export default function RequestDetailsModal({ isOpen, onClose, request, billingC
                                 </div>
                             </section>
 
-                             {/* Status & Assignment */}
+                            {/* Attached Media */}
+                            {request.mediaUrl && (
+                                <section>
+                                    <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Attached Complaint Media</h4>
+                                    <div className="mt-2">
+                                        {request.mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? (
+                                            <img src={finalMediaUrl} alt="Complaint Media" className="rounded-xl shadow-md w-full h-48 object-cover" />
+                                        ) : (
+                                            <a href={finalMediaUrl} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:text-blue-800 font-semibold">
+                                                <Paperclip className="h-5 w-5 mr-2" />
+                                                View Attached File
+                                            </a>
+                                        )}
+                                    </div>
+                                </section>
+                            )}
+                        </div>
+
+                        {/* Right Column */}
+                        <div className="space-y-8">
+                            {/* Status & Assignment */}
                             <section>
                                 <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Status & Assignment</h4>
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-4">
                                     <DetailItem label="Status" value={request.status} />
                                     <DetailItem label="Warranty" value={request.warrantyInfo?.inWarranty ? 'Active' : 'Expired'} />
                                     <DetailItem label="Assigned Technician" value={request.technician?.name} />
@@ -140,26 +160,6 @@ export default function RequestDetailsModal({ isOpen, onClose, request, billingC
                                                     View T&C
                                                 </a>
                                             </div>
-                                        )}
-                                    </div>
-                                </section>
-                            )}
-                        </div>
-
-                        {/* Right Column */}
-                        <div className="space-y-8">
-                             {/* Attached Media */}
-                             {request.mediaUrl && (
-                                <section>
-                                    <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Attached Complaint Media</h4>
-                                    <div className="mt-2">
-                                        {request.mediaUrl.match(/\.(jpeg|jpg|gif|png)$/) ? (
-                                            <img src={finalMediaUrl} alt="Complaint Media" className="rounded-xl shadow-md w-full object-contain" />
-                                        ) : (
-                                            <a href={finalMediaUrl} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:text-blue-800 font-semibold">
-                                                <Paperclip className="h-5 w-5 mr-2" />
-                                                View Attached File
-                                            </a>
                                         )}
                                     </div>
                                 </section>
@@ -195,7 +195,7 @@ export default function RequestDetailsModal({ isOpen, onClose, request, billingC
                                             ) : (
                                                 <p className="text-sm text-gray-500">No parts were listed for this repair.</p>
                                             )}
-                                            <div className="grid grid-cols-2 gap-6 mt-6">
+                                            <div className="grid grid-cols-2 gap-4 mt-6">
                                                 <ImageItem label="Before Image" path={request.beforeImagePath} api_url={API_URL} />
                                                 <ImageItem label="After Image" path={request.afterImagePath} api_url={API_URL} />
                                             </div>

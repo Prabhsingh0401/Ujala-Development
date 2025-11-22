@@ -66,11 +66,31 @@ export const getOrderItemStats = async (req, res) => {
 
 export const getMonthlySalesData = async (req, res) => {
     try {
+        const currentYear = new Date().getFullYear();
         const salesData = await Sale.aggregate([
+            {
+                $match: {
+                    createdAt: {
+                        $gte: new Date(currentYear, 0, 1),
+                        $lt: new Date(currentYear + 1, 0, 1)
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'product',
+                    foreignField: '_id',
+                    as: 'productDetails'
+                }
+            },
+            {
+                $unwind: '$productDetails'
+            },
             {
                 $group: {
                     _id: { $month: '$createdAt' },
-                    total: { $sum: '$amount' }
+                    total: { $sum: '$productDetails.price' }
                 }
             },
             { $sort: { _id: 1 } }

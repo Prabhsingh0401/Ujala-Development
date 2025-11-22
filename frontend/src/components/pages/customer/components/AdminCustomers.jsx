@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { getCustomers, getCustomerPurchases } from '../services/customerService';
 import { toast } from 'react-hot-toast';
-import { ShoppingCart, X, Edit, Search, Trash2 } from 'lucide-react';
+import { ShoppingCart, X, Edit, Trash2, Plus } from 'lucide-react';
 import EditCustomerCredentialsModal from './EditCustomerCredentialsModal';
+import AddCustomerModal from './AddCustomerModal';
 import { CustomerFilters } from './CustomerFilters';
+import ExportToExcelButton from '../../../global/ExportToExcelButton';
+import ExportToPdfButton from '../../../global/ExportToPdfButton';
 import axios from 'axios';
 
 export default function Customers() {
@@ -11,6 +14,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [purchases, setPurchases] = useState([]);
@@ -95,6 +99,21 @@ export default function Customers() {
     setEditModalOpen(true);
   };
 
+  const handleAddCustomer = async (formData) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/customers`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Customer added successfully');
+      setAddModalOpen(false);
+      fetchCustomers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add customer');
+      throw error;
+    }
+  };
+
   const deleteCustomers = async (ids) => {
     try {
         const token = localStorage.getItem('token');
@@ -170,16 +189,52 @@ export default function Customers() {
   const indexOfFirstPurchase = indexOfLastPurchase - purchasesItemsPerPage;
   const paginatedPurchases = purchases.slice(indexOfFirstPurchase, indexOfLastPurchase);
 
+  // Export columns definition
+  const customersColumns = [
+    { header: 'Name', accessor: 'Name' },
+    { header: 'Phone', accessor: 'Phone' },
+    { header: 'Email', accessor: 'Email' },
+    { header: 'Address', accessor: 'Address' },
+    { header: 'City', accessor: 'City' },
+    { header: 'State', accessor: 'State' },
+    { header: 'Products Count', accessor: 'Products Count' },
+  ];
+
+  // Export data function
+  const getExportData = () => {
+    return filteredCustomers.map(customer => ({
+      'Name': customer.name || '-',
+      'Phone': customer.phone || '-',
+      'Email': customer.email || '-',
+      'Address': customer.address || '-',
+      'City': customer.city || '-',
+      'State': customer.state || '-',
+      'Products Count': customer.purchaseCount || 0,
+    }));
+  };
+
   return (
   <div className='p-4'>
     <div className="p-6 bg-white mt-2 rounded-lg">
       <div className="flex justify-between items-center">
-        <h1 className="text-xl font-semibold text-gray-900">Customers</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Customers</h1>
+          <p className="text-sm text-gray-900 mt-1">Total {filteredCustomers.length}</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <ExportToExcelButton getData={getExportData} filename="customers-export" />
+          <ExportToPdfButton getData={getExportData} columns={customersColumns} filename="customers-export" />
+          <button
+            onClick={() => setAddModalOpen(true)}
+            className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Customer
+          </button>
+        </div>
       </div>
 
-      <p className="text-sm text-gray-900 mb-4">Total {filteredCustomers.length}</p>
-
-      <div className="bg-white rounded-lg p-1">
+      <div className="bg-white rounded-lg p-1 mt-4">
         <CustomerFilters
             searchTerm={searchQuery}
             onSearchChange={setSearchQuery}
@@ -440,12 +495,18 @@ export default function Customers() {
         </div>
       )}
 
-        <EditCustomerCredentialsModal
-            isOpen={editModalOpen}
-            onClose={() => setEditModalOpen(false)}
-            customer={editingCustomer}
-            onUpdate={fetchCustomers}
-        />
+      <AddCustomerModal
+        isOpen={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onSave={handleAddCustomer}
+      />
+
+      <EditCustomerCredentialsModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        customer={editingCustomer}
+        onUpdate={fetchCustomers}
+      />
     </div>
     </div>
   );

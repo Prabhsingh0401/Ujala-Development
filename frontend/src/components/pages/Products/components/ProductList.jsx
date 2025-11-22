@@ -1,5 +1,7 @@
 import { getOrderTypeDisplay } from '../utils.js';
 import '../../Distributors/components/TableList.css';
+import ExportToExcelButton from '../../../global/ExportToExcelButton'; // Import the new components
+import ExportToPdfButton from '../../../global/ExportToPdfButton'; // Import the new components
 
 export default function ProductList({
     products,
@@ -27,6 +29,26 @@ export default function ProductList({
             </div>
         );
     }
+
+    const productColumns = [
+        { header: 'Model', accessor: 'Model' },
+        { header: 'Box Type', accessor: 'Box Type' },
+        { header: 'Serial Numbers', accessor: 'Serial Numbers' },
+        { header: 'MRP(Price)', accessor: 'MRP(Price)' },
+        { header: 'Factory', accessor: 'Factory' },
+        { header: 'Distributor', accessor: 'Distributor' },
+    ];
+
+    const getExportData = () => {
+        return products.map(groupedProduct => ({
+            'Model': groupedProduct.productName,
+            'Box Type': `${groupedProduct.productsInBox[0]?.unitsPerBox}N`,
+            'Serial Numbers': groupedProduct.productsInBox.map(p => p.serialNumber).join(', '),
+            'MRP(Price)': `${groupedProduct.price} /- Each`,
+            'Factory': groupedProduct.factory?.name || 'N/A',
+            'Distributor': groupedProduct.productsInBox[0]?.distributor?.name || 'N/A',
+        }));
+    };
 
     return (
         <div className="overflow-x-auto">
@@ -116,6 +138,17 @@ export default function ProductList({
                                     Clear
                                 </button>
                             </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                                <ExportToExcelButton
+                                    getData={getExportData}
+                                    filename="products-export"
+                                />
+                                <ExportToPdfButton
+                                    getData={getExportData}
+                                    columns={productColumns}
+                                    filename="products-export"
+                                />
                         </div>
                     </div>
                 </div>

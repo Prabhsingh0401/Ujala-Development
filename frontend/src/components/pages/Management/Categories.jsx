@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { Search, Plus, Package, Edit, Trash2 } from 'lucide-react';
 import { useCategories } from './hooks/useCategories';
 import CategoryModal from './components/CategoryModal';
 import { getModelsByCategory } from './services/managementService';
 import ModelsListModal from './components/ModelsListModal'; 
 
-const Categories = () => {
+const Categories = forwardRef((props, ref) => {
     const { categories, loading, searchTerm, setSearchTerm, addCategory, updateCategory, deleteCategory, updateStatus, deleteMultipleCategories } = useCategories();
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -14,6 +14,12 @@ const Categories = () => {
     const [categoryModels, setCategoryModels] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+
+    useImperativeHandle(ref, () => ({
+        getComponentData: () => {
+            return categories;
+        }
+    }));
 
     const handleAddClick = () => {
         setIsEditing(false);
@@ -208,6 +214,6 @@ const Categories = () => {
             />
         </div>
     );
-};
+});
 
 export default Categories;

@@ -5,6 +5,8 @@ import ErrorBoundary from '../../global/ErrorBoundary';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import DistributorProductGroupList from './components/DistributorProductGroupList';
+import ExportToExcelButton from '../../global/ExportToExcelButton';
+import ExportToPdfButton from '../../global/ExportToPdfButton';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/distributors`;
 
@@ -39,6 +41,30 @@ function Distributors() {
         password: '',
         status: 'Active'
     });
+
+    const distributorColumns = [
+        { header: 'ID', accessor: 'ID' },
+        { header: 'Name', accessor: 'Name' },
+        { header: 'City', accessor: 'City' },
+        { header: 'GST Number', accessor: 'GST Number' },
+        { header: 'Contact Person', accessor: 'Contact Person' },
+        { header: 'Contact Phone', accessor: 'Contact Phone' },
+        { header: 'Products Count', accessor: 'Products Count' },
+        { header: 'Dealers Count', accessor: 'Dealers Count' },
+    ];
+
+    const getExportData = () => {
+        return distributors.map(d => ({
+            'ID': d.distributorId,
+            'Name': d.name,
+            'City': d.city,
+            'GST Number': d.gstNumber,
+            'Contact Person': d.contactPerson,
+            'Contact Phone': d.contactPhone,
+            'Products Count': d.productCount || 0,
+            'Dealers Count': d.dealers?.length || 0,
+        }));
+    };
 
     useEffect(() => {
         const fetchStates = async () => {
@@ -250,6 +276,10 @@ function Distributors() {
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full lg:w-auto pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent"
                                     />
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <ExportToExcelButton getData={getExportData} filename="distributors-export" />
+                                    <ExportToPdfButton getData={getExportData} columns={distributorColumns} filename="distributors-export" />
                                 </div>
                                 {selectedDistributors.length > 0 ? (
                                     <button

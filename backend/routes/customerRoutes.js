@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+  createCustomer,
   getCustomers,
   getCustomerPurchases,
   updateCustomerCredentials,
@@ -15,6 +16,7 @@ router.post('/check-phone', checkPhone);
 router.post('/set-password', setCustomerPassword);
 
 // Admin-only endpoints
+router.post('/', protect, authorize(['admin']), createCustomer);
 router.get('/', protect, authorize(['admin']), getCustomers);
 router.delete('/', protect, authorize(['admin']), deleteCustomers);
 router.get('/:id/purchases', protect, authorize(['admin']), getCustomerPurchases);

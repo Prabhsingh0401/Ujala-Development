@@ -116,7 +116,7 @@ export default function DiagnoseModal({ isOpen, onClose, onSubmit, request, bill
                                 onChange={(e) => setServiceOutcome(e.target.value)}
                                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                             >
-                                <option value="">-- Select Outcome --</option>
+                                <option value="">Select Outcome</option>
                                 <option value="Repaired">Repaired</option>
                                 <option value="Replacement Required">Replacement Required</option>
                             </select>

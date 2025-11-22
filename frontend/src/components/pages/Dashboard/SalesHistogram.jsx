@@ -44,9 +44,17 @@ export default function SalesHistogram() {
         }
     });
 
-    const normalized = monthly; // use the filled 12-month array
-    const maxSales = Math.max(...normalized.map(item => item.sales), 1);
-    const yAxisMax = Math.ceil(maxSales / 10) * 10;
+    const normalized = monthly;
+    const maxSales = Math.max(...normalized.map(item => item.sales), 0);
+
+    const calculateYAxisMax = (max) => {
+        if (max === 0) return 10; // Avoid issues with log(0)
+        const power = Math.pow(10, Math.floor(Math.log10(max)));
+        const ceil = Math.ceil(max / power);
+        return ceil * power;
+    };
+
+    const yAxisMax = calculateYAxisMax(maxSales);
     const yAxisSteps = 5;
     const stepValue = yAxisMax / yAxisSteps;
 
@@ -78,7 +86,7 @@ export default function SalesHistogram() {
                     {/* Bars */}
                     <div className="relative h-full flex items-end justify-between px-1">
                         {normalized.map((item, index) => {
-                            const height = maxSales > 0 ? (item.sales / maxSales) * 100 : 0;
+                            const height = yAxisMax > 0 ? (item.sales / yAxisMax) * 100 : 0;
                             return (
                                 <div key={index} className="flex flex-col items-center group">
                                     <div
@@ -87,7 +95,7 @@ export default function SalesHistogram() {
                                     >
                                         {/* Tooltip */}
                                         <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                            {item.sales} sales
+                                            ₹{item.sales}
                                         </div>
                                     </div>
                                 </div>

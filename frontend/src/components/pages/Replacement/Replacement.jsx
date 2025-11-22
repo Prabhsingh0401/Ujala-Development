@@ -176,7 +176,7 @@ export default function Replacement() {
                                             <thead className="bg-gray-100">
                                                 <tr>
                                                     {[
-                                                        "Product", "Serial Number", "Customer",
+                                                        "Model", "Serial Number", "Customer",
                                                         "Warranty Status", "Assigned Technician", "Actions"
                                                     ].map((header, idx) => (
                                                         <th

@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Users, Plus, Edit, Trash2, Box, Search } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Box } from 'lucide-react';
 import AssignedRequestsModal from './AssignedRequestsModal';
 import { TechnicianFilters } from './components/TechnicianFilters';
+import ExportToExcelButton from '../../global/ExportToExcelButton';
+import ExportToPdfButton from '../../global/ExportToPdfButton';
 
 export default function Technicians() {
     const [technicians, setTechnicians] = useState([]);
@@ -229,6 +231,32 @@ export default function Technicians() {
         currentPage * itemsPerPage
     );
 
+    // Export columns definition
+    const techniciansColumns = [
+        { header: 'Name', accessor: 'Name' },
+        { header: 'Technician Code', accessor: 'Technician Code' },
+        { header: 'Phone', accessor: 'Phone' },
+        { header: 'Address', accessor: 'Address' },
+        { header: 'State', accessor: 'State' },
+        { header: 'City', accessor: 'City' },
+        { header: 'Username', accessor: 'Username' },
+        { header: 'Assigned Requests', accessor: 'Assigned Requests' },
+    ];
+
+    // Export data function
+    const getExportData = () => {
+        return filteredTechnicians.map(technician => ({
+            'Name': technician.name || '-',
+            'Technician Code': technician.technicianCode || '-',
+            'Phone': technician.phone || '-',
+            'Address': technician.address || '-',
+            'State': technician.state || '-',
+            'City': technician.city || '-',
+            'Username': technician.user?.username || '-',
+            'Assigned Requests': technician.assignedRequests?.length || 0,
+        }));
+    };
+
     return (
     <div className='p-4'>
         <div className="p-6 bg-white mt-2 rounded-lg">
@@ -237,13 +265,17 @@ export default function Technicians() {
                     <h1 className="text-2xl font-semibold text-gray-800">Technicians</h1>
                     <p className="text-sm text-gray-500">Total {filteredTechnicians.length}</p>
                 </div>
-                <button
-                    onClick={() => setShowAddModal(true)}
-                    className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Technician
-                </button>
+                <div className="flex items-center space-x-2">
+                    <ExportToExcelButton getData={getExportData} filename="technicians-export" />
+                    <ExportToPdfButton getData={getExportData} columns={techniciansColumns} filename="technicians-export" />
+                    <button
+                        onClick={() => setShowAddModal(true)}
+                        className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Technician
+                    </button>
+                </div>
             </div>
 
             <TechnicianFilters

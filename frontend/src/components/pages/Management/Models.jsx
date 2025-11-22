@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { Search, Plus, Filter, Trash2 } from 'lucide-react';
 import { useModels } from './hooks/useModels';
 import { useCategories } from './hooks/useCategories';
 import ModelModal from './components/ModelModal';
 import ModelsTable from './components/ModelsTable';
 
-const Models = () => {
+const Models = forwardRef((props, ref) => {
     const { categories } = useCategories();
     const { models, loading, searchTerm, setSearchTerm, categoryFilter, setCategoryFilter, addModel, updateModel, deleteModel, updateStatus, deleteMultipleModels } = useModels(categories);
     const [showModelModal, setShowModelModal] = useState(false);
@@ -15,6 +15,12 @@ const Models = () => {
     const [selectedModelForView, setSelectedModelForView] = useState(null);
     const [selectedModels, setSelectedModels] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+
+    useImperativeHandle(ref, () => ({
+        getComponentData: () => {
+            return models;
+        }
+    }));
 
     const handleAddClick = () => {
         setIsEditing(false);
@@ -144,6 +150,6 @@ const Models = () => {
             />
         </div>
     );
-};
+});
 
 export default Models;

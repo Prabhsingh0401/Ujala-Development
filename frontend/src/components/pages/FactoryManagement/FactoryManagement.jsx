@@ -4,6 +4,8 @@ import { useFactories } from './hooks/useFactories';
 import FactoryList from './components/FactoryList';
 import FactoryModal from './components/FactoryModal';
 import FactoryOrdersModal from './components/FactoryOrdersModal';
+import ExportToExcelButton from '../../global/ExportToExcelButton'; // Import the new components
+import ExportToPdfButton from '../../global/ExportToPdfButton'; // Import the new components
 
 export default function FactoryManagement() {
     const { factories, loading, searchTerm, setSearchTerm, addFactory, updateFactory, deleteFactory, fetchFactories, deleteMultipleFactories, isDeleting } = useFactories();
@@ -14,6 +16,30 @@ export default function FactoryManagement() {
     const [selectedFactories, setSelectedFactories] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
     const [initialOrdersTab, setInitialOrdersTab] = useState('all');
+
+    // Define columns for PDF export (matching the flattened structure for Excel)
+    const factoryColumns = [
+        { header: 'Code', accessor: 'Code' },
+        { header: 'Factory Name', accessor: 'Factory Name' },
+        { header: 'Location', accessor: 'Location' },
+        { header: 'Contact Person', accessor: 'Contact Person' },
+        { header: 'Contact Phone', accessor: 'Contact Phone' },
+        { header: 'Total Orders', accessor: 'Total Orders' },
+        { header: 'Pending Orders', accessor: 'Pending Orders' },
+    ];
+
+    // Function to get data for both Excel and PDF export
+    const getExportData = () => {
+        return factories.map(factory => ({
+            Code: factory.code,
+            'Factory Name': factory.name,
+            Location: factory.location,
+            'Contact Person': factory.contactPerson,
+            'Contact Phone': factory.contactPhone,
+            'Total Orders': factory.orderCount || 0,
+            'Pending Orders': factory.pendingOrderCount || 0,
+        }));
+    };
 
     const handleAddClick = () => {
         setIsEditing(false);
@@ -75,11 +101,7 @@ export default function FactoryManagement() {
 
     return (
         <div className="p-2 sm:p-4">
-            <div className="p-3 sm:p-6">
-                <div className="mb-4 sm:mb-6">
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-4">Factory Management</h1>
-                </div>
-
+            <div className="sm:p-2">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div className="p-3 sm:p-6 border-b border-gray-200">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -101,6 +123,16 @@ export default function FactoryManagement() {
                                         className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4d55f5] focus:border-transparent text-sm"
                                     />
                                 </div>
+                                {/* Export Buttons */}
+                                <ExportToExcelButton
+                                    getData={getExportData}
+                                    filename="factories-export"
+                                />
+                                <ExportToPdfButton
+                                    getData={getExportData}
+                                    columns={factoryColumns}
+                                    filename="factories-export"
+                                />
                                 {selectedFactories.length > 0 ? (
                                     <button
                                         onClick={handleDeleteSelected}

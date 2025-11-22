@@ -4,6 +4,39 @@ import Product from '../models/Product.js';
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 
+// POST /api/customers
+export const createCustomer = async (req, res) => {
+    try {
+        const { name, phone, email, address, state, city, password } = req.body;
+
+        const customerExists = await Customer.findOne({ phone });
+
+        if (customerExists) {
+            return res.status(400).json({ message: 'A customer with this phone number already exists.' });
+        }
+
+        const customer = new Customer({
+            name,
+            phone,
+            email,
+            address,
+            state,
+            city,
+        });
+
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            customer.password = await bcrypt.hash(password, salt);
+        }
+
+        const createdCustomer = await customer.save();
+        res.status(201).json(createdCustomer);
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // GET /api/customers
 export const getCustomers = async (req, res) => {
   try {

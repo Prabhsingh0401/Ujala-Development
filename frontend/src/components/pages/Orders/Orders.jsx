@@ -4,7 +4,6 @@ import ErrorBoundary from '../../global/ErrorBoundary';
 import ConfirmationModal from '../../global/ConfirmationModal';
 import { useOrders } from './hooks/useOrders';
 import { useOrderForm } from './hooks/useOrderForm';
-
 import { OrderFilters } from './components/orderFilters';
 import { OrderTable } from './components/orderTable';
 import { OrderCard } from './components/orderCard';
@@ -13,6 +12,8 @@ import { OrderDetailsModal } from './components/orderDetailsModal';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { orderService } from './services/orderServices';
 import { Trash2 } from 'lucide-react';
+import ExportToExcelButton from '../../global/ExportToExcelButton';
+import ExportToPdfButton from '../../global/ExportToPdfButton';
 
 function Orders() {
 
@@ -62,6 +63,37 @@ function Orders() {
     refreshOrders,
     isAdding
   } = useOrders();
+
+  const orderColumns = [
+    { header: 'Order ID', accessor: 'Order ID' },
+    { header: 'Serial Number', accessor: 'Serial Number' },
+    { header: 'Factory', accessor: 'Factory' },
+    { header: 'Model', accessor: 'Model' },
+    { header: 'Boxes', accessor: 'Boxes' },
+    { header: 'Total Units', accessor: 'Total Units' },
+    { header: 'Dispatched Units', accessor: 'Dispatched Units' },
+    { header: 'Created At', accessor: 'Created At' },
+  ];
+
+  const getExportData = () => {
+    return filteredOrders.map(order => {
+      const getTotalUnits = (ord) => {
+        return ord.totalUnits || 
+               (ord.quantity * (ord.orderType === '2_units' ? 2 : 
+                                 ord.orderType === '3_units' ? 3 : 1));
+      };
+      return {
+        'Order ID': order.orderId,
+        'Serial Number': order.serialNumber,
+        'Factory': order.factory?.name,
+        'Model': order.model?.name,
+        'Boxes': order.quantity,
+        'Total Units': getTotalUnits(order),
+        'Dispatched Units': order.dispatchedUnits || 0,
+        'Created At': new Date(order.createdAt).toLocaleDateString(),
+      }
+    });
+  };
 
   const handleDeleteClick = (order) => {
     setOrderToDelete(order);
@@ -318,11 +350,15 @@ function Orders() {
         {/* Filters and Actions */}
         <div className="p-3 sm:p-6 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
+            <div className='flex flex-col'>
               <h2 className="text-lg font-semibold text-gray-900">Orders</h2>
               <p className="text-sm text-gray-600">Total {filteredOrders.length}</p>
+              <div className="flex items-center space-x-2 whitespace-nowrap mt-15">
+                  <ExportToExcelButton getData={getExportData} filename="orders-export" />
+                  <ExportToPdfButton getData={getExportData} columns={orderColumns} filename="orders-export" />
             </div>
-
+            </div>
+            
             <div className="space-y-3 sm:space-y-0 flex flex-col sm:flex-row items-stretch sm:items-center sm:space-x-4">
               {selectedOrders.length > 0 ? (
                 <button
