@@ -2,7 +2,7 @@ import Distributor from '../models/Distributor.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js'; // Import User model
 import Dealer from '../models/Dealer.js'; // Import Dealer model
-import bcrypt from 'bcrypt'; // Import bcrypt for password hashing
+import bcrypt from 'bcryptjs'; // Import bcrypt for password hashing
 
 export const getDistributors = async (req, res) => {
     try {

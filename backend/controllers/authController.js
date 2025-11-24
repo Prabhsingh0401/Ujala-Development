@@ -4,13 +4,13 @@ import Factory from '../models/Factory.js';
 import PasswordResetRequest from '../models/PasswordResetRequest.js';
 import Customer from '../models/Customer.js';
 import Sale from '../models/Sale.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken'; // Import jsonwebtoken
 
 // Helper function to generate JWT
 const generateToken = (id, role, distributor, factory, dealer) => {
     return jwt.sign({ id, role, distributor, factory, dealer }, process.env.JWT_SECRET, {
-        expiresIn: '2h',
+        expiresIn: '6h',
     });
 };
 

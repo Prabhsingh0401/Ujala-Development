@@ -2,7 +2,7 @@ import Customer from '../models/Customer.js';
 import Sale from '../models/Sale.js';
 import Product from '../models/Product.js';
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 // POST /api/customers
 export const createCustomer = async (req, res) => {

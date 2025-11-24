@@ -44,7 +44,7 @@ export default function TechnicianSideBar({ sidebarOpen, toggleSidebar }) {
                     >
                         {sidebarOpen && (
                             <div>
-                                <div className="text-lg font-extrabold">WarrenTech</div>
+                                <div className="text-lg font-extrabold">WarranTech</div>
                                 <div className="text-xs text-white/80 -mt-1">Technician Panel</div>
                             </div>
                         )}

@@ -51,7 +51,7 @@ export function CustomerSideBar({ sidebarOpen, toggleSidebar }) {
                         {sidebarOpen && (
                             <div className="flex items-center space-x-3">
                                 <div>
-                                    <div className="text-lg font-extrabold">WarrenTech</div>
+                                    <div className="text-lg font-extrabold">WarranTech</div>
                                     <div className="text-xs text-white/80 -mt-1">Customer Dashboard</div>
                                 </div>
                             </div>

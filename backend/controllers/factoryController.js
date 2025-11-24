@@ -3,7 +3,7 @@ import Order, { OrderItem } from '../models/Order.js';
 import User from '../models/User.js';
 import Product from '../models/Product.js';
 import Model from '../models/Model.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 export const getFactories = async (req, res) => {
     try {

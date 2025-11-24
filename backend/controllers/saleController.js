@@ -367,3 +367,19 @@ export const getAssignedProducts = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getAllSales = async (req, res) => {
+    try {
+        const sales = await Sale.find({})
+            .populate({
+                path: 'product',
+                populate: {
+                    path: 'model'
+                }
+            })
+            .sort({ soldAt: -1 });
+        res.json(sales);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

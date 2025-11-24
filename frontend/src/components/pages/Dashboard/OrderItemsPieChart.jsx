@@ -50,7 +50,7 @@ export default function OrderItemsPieChart() {
     const dispatchedOffset = ((pendingPercentage + completedPercentage) / 100) * circumference;
 
     return (
-        <div className="flex flex-col items-center">
+        <div className="flex flex-row items-center justify-center space-x-10">
             <div className="relative">
                 <svg width="200" height="200" className="transform -rotate-90">
                     <circle
