@@ -63,7 +63,12 @@ export default function ModelModal({ isOpen, onClose, onSave, model, isEditing, 
 
     const checkCodeUniqueness = useCallback(
         debounce(async (code) => {
-            if (!code || isEditing) { // Don't check uniqueness if editing or code is empty
+            if (!code) {
+                setCodeError('');
+                setIsCheckingCode(false);
+                return;
+            }
+            if (isEditing && model && code === model.code) {
                 setCodeError('');
                 setIsCheckingCode(false);
                 return;
@@ -83,7 +88,7 @@ export default function ModelModal({ isOpen, onClose, onSave, model, isEditing, 
                 setIsCheckingCode(false);
             }
         }, 500),
-        [isEditing]
+        [isEditing, model]
     );
 
     useEffect(() => {

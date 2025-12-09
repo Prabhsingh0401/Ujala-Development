@@ -119,7 +119,7 @@ export const deleteModel = async (modelId) => {
 export const deleteMultipleModels = async (modelIds) => {
     if (window.confirm(`Are you sure you want to delete ${modelIds.length} selected models?`)) {
         try {
-            await axios.delete(MODELS_API_URL, { data: { modelIds } });
+            await axios.delete(MODELS_API_URL, { data: { ids: modelIds } });
             toast.success('Selected models deleted successfully');
         } catch (error) {
             toast.error('Error deleting selected models');

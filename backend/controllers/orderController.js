@@ -90,9 +90,10 @@ export const createOrder = async (req, res) => {
             const monthStr = String(month).padStart(2, '0');
             const yearStr = String(year).slice(-2);
             const factoryCode = factory.code.toUpperCase();
+            const modelCode = model.code.toUpperCase();
             
-            // Create serial number range for the order (factory-level, not model-specific)
-            const orderSerialBase = `${monthStr}${yearStr}${factoryCode}`;
+            // Create serial number range for the order
+            const orderSerialBase = `${monthStr}${yearStr}${factoryCode}${modelCode}`;
             const orderSerialNumber = `${orderSerialBase}${startCounter}-${endCounter}`;
 
             const order = {
@@ -222,9 +223,10 @@ export const updateOrder = async (req, res) => {
             const monthStr = String(month).padStart(2, '0');
             const yearStr = String(year).slice(-2);
             const factoryCode = factory.code.toUpperCase();
+            const modelCode = model.code.toUpperCase();
             
-            // Order serial number (factory-level)
-            const orderSerialBase = `${monthStr}${yearStr}${factoryCode}`;
+            // Order serial number
+            const orderSerialBase = `${monthStr}${yearStr}${factoryCode}${modelCode}`;
             orderData.serialNumber = `${orderSerialBase}${startCounter}-${endCounter}`;
 
             // 6. Create new items
