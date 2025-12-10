@@ -25,6 +25,8 @@ export default function Technicians() {
         password: '',
         technicianCode: '',
     });
+    const [allStates, setAllStates] = useState([]);
+    const [allCities, setAllCities] = useState([]);
     const [states, setStates] = useState([]);
     const [cities, setCities] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -76,6 +78,39 @@ export default function Technicians() {
         useEffect(() => {
             setCities(uniqueCities);
         }, [uniqueCities]);
+
+        // Fetch all states for dropdown
+        const fetchAllStates = async () => {
+            try {
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/states`);
+                setAllStates(res.data);
+            } catch (error) {
+                console.error('Error fetching states:', error);
+            }
+        };
+
+        // Fetch cities for selected state
+        const fetchCitiesForState = async (state) => {
+            if (!state) {
+                setAllCities([]);
+                return;
+            }
+            try {
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/locations/cities/${encodeURIComponent(state)}`);
+                setAllCities(res.data);
+            } catch (error) {
+                console.error('Error fetching cities:', error);
+                setAllCities([]);
+            }
+        };
+
+        useEffect(() => {
+            fetchAllStates();
+        }, []);
+
+        useEffect(() => {
+            fetchCitiesForState(formData.state);
+        }, [formData.state]);
     
         const [itemsPerPage, setItemsPerPage] = useState(10);
         const [currentPage, setCurrentPage] = useState(1);
@@ -102,9 +137,10 @@ export default function Technicians() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
         if (name === 'state') {
             setFormData({ ...formData, state: value, city: '' });
+        } else {
+            setFormData({ ...formData, [name]: value });
         }
     };
 
@@ -117,10 +153,26 @@ export default function Technicians() {
             });
             toast.success('Technician added successfully');
             setShowAddModal(false);
+            resetForm();
             fetchTechnicians();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to add technician');
         }
+    };
+
+    const resetForm = () => {
+        setFormData({
+            name: '',
+            phone: '',
+            address: '',
+            state: '',
+            city: '',
+            username: '',
+            password: '',
+            technicianCode: '',
+        });
+        setAllCities([]);
+        setCodeError('');
     };
 
     const handleEditTechnician = (technician) => {
@@ -134,6 +186,10 @@ export default function Technicians() {
             username: technician.user.username,
             password: '',
         });
+        // Load cities for the selected state
+        if (technician.state) {
+            fetchCitiesForState(technician.state);
+        }
         setShowEditModal(true);
     };
 
@@ -147,6 +203,7 @@ export default function Technicians() {
             });
             toast.success('Technician updated successfully');
             setShowEditModal(false);
+            resetForm();
             fetchTechnicians();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to update technician');
@@ -269,7 +326,10 @@ export default function Technicians() {
                     <ExportToExcelButton getData={getExportData} filename="technicians-export" />
                     <ExportToPdfButton getData={getExportData} columns={techniciansColumns} filename="technicians-export" />
                     <button
-                        onClick={() => setShowAddModal(true)}
+                        onClick={() => {
+                            resetForm();
+                            setShowAddModal(true);
+                        }}
                         className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                     >
                         <Plus className="h-4 w-4 mr-2" />
@@ -434,13 +494,13 @@ export default function Technicians() {
                                 </div>
                                 <input type="text" name="phone" placeholder="Phone" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
                                 <input type="text" name="address" placeholder="Address" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
-                                <select name="state" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
+                                <select name="state" value={formData.state} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
                                     <option value="">Select State</option>
-                                    {states.map(state => <option key={state} value={state}>{state}</option>)}
+                                    {allStates.map(state => <option key={state} value={state}>{state}</option>)}
                                 </select>
-                                <select name="city" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
+                                <select name="city" value={formData.city} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
                                     <option value="">Select City</option>
-                                    {cities.map(city => <option key={city} value={city}>{city}</option>)}
+                                    {allCities.map(city => <option key={city} value={city}>{city}</option>)}
                                 </select>
                                 <input type="text" name="username" placeholder="Username" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required />
                                 <div>
@@ -448,7 +508,10 @@ export default function Technicians() {
                                 </div>
                             </div>
                             <div className="mt-4 flex justify-end space-x-2">
-                                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                                <button type="button" onClick={() => {
+                                    setShowAddModal(false);
+                                    resetForm();
+                                }} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                                 <button type="submit" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400" disabled={!!codeError || isCheckingCode}>Add</button>
                             </div>
                         </form>
@@ -482,14 +545,14 @@ export default function Technicians() {
                                     <label className="block text-sm font-medium text-gray-700">State</label>
                                     <select name="state" value={formData.state} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
                                         <option value="">Select State</option>
-                                        {states.map(state => <option key={state} value={state}>{state}</option>)}
+                                        {allStates.map(state => <option key={state} value={state}>{state}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">City</label>
                                     <select name="city" value={formData.city} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" required>
                                         <option value="">Select City</option>
-                                        {cities.map(city => <option key={city} value={city}>{city}</option>)}
+                                        {allCities.map(city => <option key={city} value={city}>{city}</option>)}
                                     </select>
                                 </div>
                                 <div>
@@ -502,7 +565,10 @@ export default function Technicians() {
                                 </div>
                             </div>
                             <div className="mt-4 flex justify-end space-x-2">
-                                <button type="button" onClick={() => setShowEditModal(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                                <button type="button" onClick={() => {
+                                    setShowEditModal(false);
+                                    resetForm();
+                                }} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                                 <button type="submit" className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Update</button>
                             </div>
                         </form>
