@@ -84,8 +84,9 @@ export const createOrder = async (req, res) => {
                 }
             );
 
-            const startCounter = (factoryCounter?.counter || 10000) + 1;
-            const endCounter = startCounter + totalUnits - 1;
+            const currentCounter = factoryCounter?.counter || 10000;
+            const startCounter = currentCounter + 1;
+            const endCounter = currentCounter + totalUnits;
 
             const monthStr = String(month).padStart(2, '0');
             const yearStr = String(year).slice(-2);
@@ -214,8 +215,9 @@ export const updateOrder = async (req, res) => {
                 }
             );
 
-            const startCounter = (factoryCounter?.counter || 10000) + 1;
-            const endCounter = startCounter + totalUnits - 1;
+            const currentCounter = factoryCounter?.counter || 10000;
+            const startCounter = currentCounter + 1;
+            const endCounter = currentCounter + totalUnits;
 
             // 5. Generate new serial number range for Order
             const month = orderData.month || existingOrder.month;

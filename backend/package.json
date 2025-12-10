@@ -8,7 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "expire-purchases": "node scripts/expireLatestPurchases.js"
+    "expire-purchases": "node scripts/expireLatestPurchases.js",
+    "fix-serials": "node scripts/fixOrderSerials.js"
   },
   "keywords": [],
   "author": "",
