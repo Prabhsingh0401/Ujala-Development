@@ -4,7 +4,6 @@ import Product from '../models/Product.js';
 import Factory from '../models/Factory.js';
 import Model from '../models/Model.js';
 
-// ... (getOrders, createOrder, updateOrder, deleteOrder functions remain the same) ...
 export const getOrders = async (req, res) => {
     try {
         const { factory } = req.query;
@@ -72,18 +71,23 @@ export const createOrder = async (req, res) => {
                 newOrderId = 'ORD00001';
             }
 
-            // Atomically increment factory counter and get new range
+            // FIX: Atomically increment factory counter with proper initialization
             const factoryCounter = await FactoryCounter.findOneAndUpdate(
                 { factoryId },
-                { $inc: { counter: totalUnits } },
+                { 
+                    $inc: { counter: totalUnits },
+                    $setOnInsert: { counter: 10000 } // Initialize to 10000 on first insert
+                },
                 { 
                     new: false, // Return the old value before increment
-                    upsert: true, 
-                    setDefaultsOnInsert: true,
+                    upsert: true,
                     session 
                 }
             );
 
+            // FIX: Properly handle the counter value
+            // If factoryCounter is null, it means document was just created with counter: 10000
+            // and then incremented by totalUnits, so we use 10000 as base
             const currentCounter = factoryCounter?.counter || 10000;
             const startCounter = currentCounter + 1;
             const endCounter = currentCounter + totalUnits;
@@ -204,17 +208,20 @@ export const updateOrder = async (req, res) => {
                 return res.status(404).json({ message: 'Factory or Model not found' });
             }
 
-            // 4. Atomically get new counter range
+            // FIX: Atomically get new counter range with proper initialization
             const factoryCounter = await FactoryCounter.findOneAndUpdate(
                 { factoryId },
-                { $inc: { counter: totalUnits } },
+                { 
+                    $inc: { counter: totalUnits },
+                    $setOnInsert: { counter: 10000 } // Initialize to 10000 on first insert
+                },
                 { 
                     new: false, // Return the old value before increment
-                    upsert: true, 
-                    setDefaultsOnInsert: true
+                    upsert: true
                 }
             );
 
+            // FIX: Properly handle the counter value
             const currentCounter = factoryCounter?.counter || 10000;
             const startCounter = currentCounter + 1;
             const endCounter = currentCounter + totalUnits;
@@ -312,19 +319,26 @@ export const deleteOrder = async (req, res) => {
             return res.status(404).json({ message: 'Order not found' });
         }
 
+        // Delete associated order items
         await OrderItem.deleteMany({ orderId: order.orderId });
         
+        // Delete the order
         await Order.deleteOne({ _id: id });
         
-        const remainingItems = await OrderItem.find({ factory: order.factory }).sort({ serialNumber: -1 }).limit(1);
+        // FIX: Recalculate factory counter based on highest remaining serial number
+        const remainingItems = await OrderItem.find({ factory: order.factory })
+            .sort({ serialNumber: -1 })
+            .limit(1);
         
         if (remainingItems.length === 0) {
+            // No items left for this factory, reset to initial value
             await FactoryCounter.findOneAndUpdate(
                 { factoryId: order.factory },
                 { counter: 10000 },
                 { upsert: true }
             );
         } else {
+            // Extract the counter from the last serial number
             const lastSerial = remainingItems[0].serialNumber;
             const counterMatch = lastSerial.match(/(\d+)$/);
             if (counterMatch) {
@@ -355,16 +369,52 @@ export const deleteMultipleOrders = async (req, res) => {
             return res.status(404).json({ message: 'No orders found with the provided IDs.' });
         }
 
+        // FIX: Get unique factory IDs safely
+        const factoryIdsSet = new Set();
+        orders.forEach(order => {
+            if (order.factory) {
+                // Handle ObjectId or string
+                const factoryId = order.factory._id || order.factory;
+                factoryIdsSet.add(factoryId.toString());
+            }
+        });
+        const factoryIds = Array.from(factoryIdsSet);
+
         const orderIds = orders.map(order => order.orderId);
         await OrderItem.deleteMany({ orderId: { $in: orderIds } });
         await Order.deleteMany({ _id: { $in: ids } });
+
+        // Reset counter for each affected factory
+        for (const factoryId of factoryIds) {
+            const remainingItems = await OrderItem.find({ factory: factoryId })
+                .sort({ serialNumber: -1 })
+                .limit(1);
+            
+            if (remainingItems.length === 0) {
+                await FactoryCounter.findOneAndUpdate(
+                    { factoryId },
+                    { counter: 10000 },
+                    { upsert: true }
+                );
+            } else {
+                const lastSerial = remainingItems[0].serialNumber;
+                const counterMatch = lastSerial.match(/(\d+)$/);
+                if (counterMatch) {
+                    const lastCounter = parseInt(counterMatch[1]);
+                    await FactoryCounter.findOneAndUpdate(
+                        { factoryId },
+                        { counter: lastCounter },
+                        { upsert: true }
+                    );
+                }
+            }
+        }
 
         res.json({ message: 'Orders deleted successfully.' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 }
-
 
 export const markOrderAsDispatched = async (req, res) => {
     const { id } = req.params;
@@ -384,13 +434,11 @@ export const markOrderAsDispatched = async (req, res) => {
             return res.status(400).json({ message: 'Order must be completed before it can be dispatched' });
         }
         
-        // FIX: Update status and dispatchedAt timestamp
         order.status = 'Dispatched';
         order.dispatchedAt = new Date();
         
         const updatedOrder = await order.save();
 
-        // FIX: Update status and dispatchedAt on all associated order items
         await OrderItem.updateMany(
             { orderId: order.orderId },
             { $set: { status: 'Dispatched', dispatchedAt: new Date() } }
@@ -402,7 +450,6 @@ export const markOrderAsDispatched = async (req, res) => {
     }
 };
 
-// FIX: Floating code block is now a correctly named function
 export const updateOrderStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -425,7 +472,6 @@ export const updateOrderStatus = async (req, res) => {
         }
 
         const updateData = { status };
-        // Set completion timestamp if status is 'Completed'
         if (status === 'Completed') {
             updateData.completedAt = new Date();
         }
@@ -521,14 +567,12 @@ export const resetFactoryCounters = async (req, res) => {
 
 export const cleanupDuplicateSerialNumbers = async (req, res) => {
     try {
-        // Find duplicate serial numbers in Orders
         const orderDuplicates = await Order.aggregate([
             { $group: { _id: '$serialNumber', count: { $sum: 1 }, docs: { $push: '$_id' } } },
             { $match: { count: { $gt: 1 } } }
         ]);
 
         let orderDuplicatesRemoved = 0;
-        // Remove duplicates, keeping the first one
         for (const duplicate of orderDuplicates) {
             const [keep, ...remove] = duplicate.docs;
             if (remove.length > 0) {
@@ -537,14 +581,12 @@ export const cleanupDuplicateSerialNumbers = async (req, res) => {
             }
         }
 
-        // Find duplicate serial numbers in OrderItems
         const itemDuplicates = await OrderItem.aggregate([
             { $group: { _id: '$serialNumber', count: { $sum: 1 }, docs: { $push: '$_id' } } },
             { $match: { count: { $gt: 1 } } }
         ]);
 
         let itemDuplicatesRemoved = 0;
-        // Remove duplicates, keeping the first one
         for (const duplicate of itemDuplicates) {
             const [keep, ...remove] = duplicate.docs;
             if (remove.length > 0) {
@@ -576,7 +618,6 @@ export const getOrderFactoryStats = async (req, res) => {
         const orderItems = await OrderItem.find({ orderId: order.orderId });
         
         const totalItems = orderItems.length;
-        // FIX: Corrected logic to count each status properly
         const completedItems = orderItems.filter(item => item.status === 'Completed' || item.status === 'Dispatched').length;
         const dispatchedItems = orderItems.filter(item => item.status === 'Dispatched').length;
         const pendingItems = orderItems.filter(item => item.status === 'Pending' || item.status === 'In Progress').length;
@@ -645,7 +686,6 @@ export const transferToProducts = async (req, res) => {
 
         const orderItems = await OrderItem.find({
             _id: { $in: orderItemIds },
-            // FIX: Check for status 'Dispatched' instead of boolean
             status: 'Dispatched',
             isTransferredToProduct: { $ne: true }
         })

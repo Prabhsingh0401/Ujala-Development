@@ -26,25 +26,25 @@ const cleanupData = async () => {
     await connectDB();
 
     console.log('Clearing all data except admin user...');
-    await Category.deleteMany({});
-    await Customer.deleteMany({});
-    await Dealer.deleteMany({});
-    await DealerDeletionRequest.deleteMany({});
-    await Distributor.deleteMany({});
-    await DistributorDealerProduct.deleteMany({});
-    await DistributorRequest.deleteMany({});
-    await Factory.deleteMany({});
-    await Model.deleteMany({});
+    // await Category.deleteMany({});
+    // await Customer.deleteMany({});
+    // await Dealer.deleteMany({});
+    // await DealerDeletionRequest.deleteMany({});
+    // await Distributor.deleteMany({});
+    // await DistributorDealerProduct.deleteMany({});
+    // await DistributorRequest.deleteMany({});
+    // await Factory.deleteMany({});
+    // await Model.deleteMany({});
     await Order.deleteMany({});
     await OrderItem.deleteMany({});
     await FactoryCounter.deleteMany({});
-    await PasswordResetRequest.deleteMany({});
+    // await PasswordResetRequest.deleteMany({});
     await Product.deleteMany({});
-    await ReplacementRequest.deleteMany({});
+    // await ReplacementRequest.deleteMany({});
     await Sale.deleteMany({});
-    await Technician.deleteMany({});
-    await User.deleteMany({ username: { $ne: 'admin' } }); // Delete all users except 'admin'
-    await UserRole.deleteMany({});
+    // await Technician.deleteMany({});
+    // await User.deleteMany({ username: { $ne: 'admin' } }); // Delete all users except 'admin'
+    // await UserRole.deleteMany({});
     console.log('Data cleared successfully!');
     process.exit();
   } catch (error) {
