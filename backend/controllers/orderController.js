@@ -71,26 +71,28 @@ export const createOrder = async (req, res) => {
                 newOrderId = 'ORD00001';
             }
 
-            // FIX: Atomically increment factory counter with proper initialization
-            const factoryCounter = await FactoryCounter.findOneAndUpdate(
-                { factoryId },
-                { 
-                    $inc: { counter: totalUnits },
-                    $setOnInsert: { counter: 10000 } // Initialize to 10000 on first insert
-                },
-                { 
-                    new: false, // Return the old value before increment
-                    upsert: true,
-                    session 
-                }
-            );
+            // FIX: Handle factory counter initialization and increment separately
+            let factoryCounter = await FactoryCounter.findOne({ factoryId }, {}, { session });
+            
+            if (!factoryCounter) {
+                // Initialize counter for first time
+                const newCounter = await FactoryCounter.create(
+                    [{ factoryId, counter: 10000 }],
+                    { session }
+                );
+                factoryCounter = newCounter[0];
+            }
 
-            // FIX: Properly handle the counter value
-            // If factoryCounter is null, it means document was just created with counter: 10000
-            // and then incremented by totalUnits, so we use 10000 as base
-            const currentCounter = factoryCounter?.counter || 10000;
+            const currentCounter = factoryCounter.counter;
             const startCounter = currentCounter + 1;
             const endCounter = currentCounter + totalUnits;
+
+            // Now increment the counter
+            await FactoryCounter.findOneAndUpdate(
+                { factoryId },
+                { $inc: { counter: totalUnits } },
+                { session }
+            );
 
             const monthStr = String(month).padStart(2, '0');
             const yearStr = String(year).slice(-2);
@@ -208,23 +210,23 @@ export const updateOrder = async (req, res) => {
                 return res.status(404).json({ message: 'Factory or Model not found' });
             }
 
-            // FIX: Atomically get new counter range with proper initialization
-            const factoryCounter = await FactoryCounter.findOneAndUpdate(
-                { factoryId },
-                { 
-                    $inc: { counter: totalUnits },
-                    $setOnInsert: { counter: 10000 } // Initialize to 10000 on first insert
-                },
-                { 
-                    new: false, // Return the old value before increment
-                    upsert: true
-                }
-            );
+            // FIX: Handle factory counter initialization and increment separately
+            let factoryCounter = await FactoryCounter.findOne({ factoryId });
+            
+            if (!factoryCounter) {
+                // Initialize counter for first time
+                factoryCounter = await FactoryCounter.create({ factoryId, counter: 10000 });
+            }
 
-            // FIX: Properly handle the counter value
-            const currentCounter = factoryCounter?.counter || 10000;
+            const currentCounter = factoryCounter.counter;
             const startCounter = currentCounter + 1;
             const endCounter = currentCounter + totalUnits;
+
+            // Now increment the counter
+            await FactoryCounter.findOneAndUpdate(
+                { factoryId },
+                { $inc: { counter: totalUnits } }
+            );
 
             // 5. Generate new serial number range for Order
             const month = orderData.month || existingOrder.month;
